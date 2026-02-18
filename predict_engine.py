@@ -6,9 +6,9 @@ import numpy as np
 from sentence_transformers import SentenceTransformer, util
 
 
-# ==========================
+# =====================================
 # Clean text
-# ==========================
+# =====================================
 
 def clean_text(text):
 
@@ -18,51 +18,58 @@ def clean_text(text):
         text = text.replace("â€”", "-")
         text = text.replace("â€˜", "'")
         text = text.replace("â€™", "'")
+        text = text.replace("â€œ", '"')
+        text = text.replace("â€", '"')
 
     return text
 
 
-# ==========================
-# Enhanced Semantic Classifier
-# ==========================
+# =====================================
+# Fine-tuned classifier
+# =====================================
 
-class EnterpriseSemanticClassifier:
+class FineTunedClassifier:
 
     def __init__(self):
 
-        print("Loading enterprise classifier...")
+        print("Loading fine-tuned model...")
 
-        self.model = SentenceTransformer(
-            "sentence-transformers/all-MiniLM-L6-v2"
-        )
+        model_path = "model/fine_tuned"
 
-        path = "data/category_examples.json"
+        if not os.path.exists(model_path):
 
-        if not os.path.exists(path):
-
-            raise Exception("category_examples.json missing")
-
-        with open(path, "r", encoding="utf-8") as f:
-
-            self.examples = json.load(f)
-
-        # Compute centroid per category
-        self.category_centroids = {}
-
-        for category, texts in self.examples.items():
-
-            embeddings = self.model.encode(
-                texts,
-                batch_size=32,
-                show_progress_bar=False
+            raise Exception(
+                "Fine-tuned model not found. Run train_classifier.py first."
             )
 
-            centroid = np.mean(embeddings, axis=0)
+        self.model = SentenceTransformer(model_path)
 
-            self.category_centroids[category] = centroid
+        # Load label map
+        with open("model/label_map.json", "r") as f:
 
-        print("Classifier ready.")
+            self.label_map = json.load(f)
 
+        self.reverse_map = {
+
+            int(v): k for k, v in self.label_map.items()
+
+        }
+
+        # Create label embeddings
+        self.label_texts = list(self.label_map.keys())
+
+        self.label_embeddings = self.model.encode(
+            self.label_texts,
+            batch_size=32,
+            show_progress_bar=False
+        )
+
+        print("Fine-tuned classifier ready.")
+
+
+    # =====================================
+    # Build context from ALL fields
+    # =====================================
 
     def build_context(self, row):
 
@@ -71,41 +78,36 @@ class EnterpriseSemanticClassifier:
             "Ticket Details",
             "Problem",
             "Cause",
-            "Work notes",
             "Assignment Group",
-            "Team"
+            "Work notes"
         ]
 
         parts = []
 
-        for col in row.index:
+        for col in important_columns:
 
-            value = row[col]
+            if col in row and pd.notna(row[col]):
 
-            if pd.notna(value):
-
-                parts.append(str(value))
+                parts.append(str(row[col]))
 
         return " | ".join(parts)
 
 
+    # =====================================
+    # Batch prediction
+    # =====================================
+
     def predict_batch(self, df):
 
-        contexts = df.apply(
+        texts = df.apply(
             lambda row: self.build_context(row),
             axis=1
         ).tolist()
 
         ticket_embeddings = self.model.encode(
-            contexts,
+            texts,
             batch_size=32,
             show_progress_bar=False
-        )
-
-        categories = list(self.category_centroids.keys())
-
-        centroid_matrix = np.vstack(
-            [self.category_centroids[c] for c in categories]
         )
 
         predicted = []
@@ -113,35 +115,47 @@ class EnterpriseSemanticClassifier:
 
         for emb in ticket_embeddings:
 
-            scores = util.cos_sim(emb, centroid_matrix)[0]
+            scores = util.cos_sim(
+                emb,
+                self.label_embeddings
+            )[0]
 
             idx = scores.argmax().item()
 
-            predicted.append(categories[idx])
+            predicted.append(self.label_texts[idx])
 
             confidence.append(float(scores[idx]))
 
         return predicted, confidence
 
 
-# ==========================
-# Main function
-# ==========================
+# =====================================
+# Main function used by dashboard
+# =====================================
 
 def classify_file(input_file, output_file):
 
-    clf = EnterpriseSemanticClassifier()
+    clf = FineTunedClassifier()
 
     df = pd.read_excel(input_file)
 
     df.columns = df.columns.str.strip()
 
-    predicted, conf = clf.predict_batch(df)
+    predicted, confidence = clf.predict_batch(df)
 
     df["Predicted Category"] = predicted
 
-    df["Confidence"] = conf
+    df["Confidence"] = confidence
 
-    df.to_excel(output_file, index=False)
+    # Clean encoding
+    for col in df.columns:
 
-    print("Classification complete.")
+        df[col] = df[col].astype(str).apply(clean_text)
+
+    df.to_excel(
+        output_file,
+        index=False,
+        engine="openpyxl"
+    )
+
+    print("Classification complete:", output_file)
