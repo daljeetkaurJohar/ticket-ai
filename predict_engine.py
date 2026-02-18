@@ -1,6 +1,8 @@
-
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
+
+
+# Fix encoding function
 def clean_text(text):
     if isinstance(text, str):
         text = text.replace("â€“", "-")
@@ -15,19 +17,20 @@ def clean_text(text):
 MODEL_NAME = "all-MiniLM-L6-v2"
 
 CATEGORIES = [
-"IT - System linkage issue",
-"IT - System Access issue",
-"IT – System Version issue",
-"IT – Data entry handholding",
-"IT – Master Data/ mapping issue",
-"User - Mapping missing",
-"User – Master data delayed input",
-"User - Logic changes during ABP",
-"User – Master data incorporation in system",
-"User – System Knowledge Gap",
-"User - Logic mistakes in excel vs system",
-"User - Multiple versions issue in excel"
+    "IT - System linkage issue",
+    "IT - System Access issue",
+    "IT - System Version issue",
+    "IT - Data entry handholding",
+    "IT - Master Data/ mapping issue",
+    "User - Mapping missing",
+    "User - Master data delayed input",
+    "User - Logic changes during ABP",
+    "User - Master data incorporation in system",
+    "User - System Knowledge Gap",
+    "User - Logic mistakes in excel vs system",
+    "User - Multiple versions issue in excel"
 ]
+
 
 class OfflineClassifier:
 
@@ -46,26 +49,35 @@ class OfflineClassifier:
         conf = float(scores.max())
         return CATEGORIES[idx], conf
 
+
 def classify_file(input_file, output_file):
+
     clf = OfflineClassifier()
+
     df = pd.read_excel(input_file)
+
+    # Remove hidden spaces from column names
+    df.columns = df.columns.str.strip()
 
     categories = []
     confidences = []
 
     for _, row in df.iterrows():
+
         cat, conf = clf.predict(row)
+
         categories.append(cat)
         confidences.append(conf)
 
+    # Assign predictions
+    df["Predicted Category"] = categories
+    df["Confidence"] = confidences
 
-df["Predicted Category"] = categories
-df["Confidence"] = confidences
+    # Fix encoding issues
+    for col in df.columns:
+        df[col] = df[col].astype(str).apply(clean_text)
 
-# Fix encoding
-for col in df.columns:
-    df[col] = df[col].astype(str).apply(clean_text)
+    # Save file
+    df.to_excel(output_file, index=False, engine="openpyxl")
 
-df.to_excel(output_file, index=False, engine="openpyxl")
-
-print("Classification complete:", output_file)
+    print("Classification complete:", output_file)
