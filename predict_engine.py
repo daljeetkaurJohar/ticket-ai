@@ -1,90 +1,50 @@
 import pandas as pd
 import json
 import os
-import numpy as np
 
-from sentence_transformers import SentenceTransformer, util
-
-
-# =====================================
-# Clean text
-# =====================================
-
-def clean_text(text):
-
-    if isinstance(text, str):
-
-        text = text.replace("â€“", "-")
-        text = text.replace("â€”", "-")
-        text = text.replace("â€˜", "'")
-        text = text.replace("â€™", "'")
-        text = text.replace("â€œ", '"')
-        text = text.replace("â€", '"')
-
-    return text
+from sentence_transformers import SentenceTransformer, InputExample, losses, util
+from torch.utils.data import DataLoader
 
 
-# =====================================
-# Fine-tuned classifier
-# =====================================
-
-class FineTunedClassifier:
-
-    def __init__(self):
-
-        print("Loading fine-tuned model...")
-
-        model_path = "model/fine_tuned"
-
-        if not os.path.exists(model_path):
-
-            raise Exception(
-                "Fine-tuned model not found. Run train_classifier.py first."
-            )
-
-        self.model = SentenceTransformer(model_path)
-
-        # Load label map
-        with open("model/label_map.json", "r") as f:
-
-            self.label_map = json.load(f)
-
-        self.reverse_map = {
-
-            int(v): k for k, v in self.label_map.items()
-
-        }
-
-        # Create label embeddings
-        self.label_texts = list(self.label_map.keys())
-
-        self.label_embeddings = self.model.encode(
-            self.label_texts,
-            batch_size=32,
-            show_progress_bar=False
-        )
-
-        print("Fine-tuned classifier ready.")
+MODEL_PATH = "model/fine_tuned"
+LABEL_MAP_PATH = "model/label_map.json"
 
 
-    # =====================================
-    # Build context from ALL fields
-    # =====================================
+# ==========================
+# Auto training function
+# ==========================
 
-    def build_context(self, row):
+def train_model_if_missing():
 
-        important_columns = [
-            "Ticket Summary",
-            "Ticket Details",
-            "Problem",
-            "Cause",
-            "Assignment Group",
-            "Work notes"
-        ]
+    if os.path.exists(MODEL_PATH):
+
+        print("Model already exists.")
+        return
+
+
+    print("Training model automatically...")
+
+    os.makedirs("model", exist_ok=True)
+
+    df = pd.read_excel("data/incoming_tickets.xlsx")
+
+    df.columns = df.columns.str.strip()
+
+    df = df.dropna(subset=["ISSUE CAT"])
+
+
+    def build_text(row):
 
         parts = []
 
-        for col in important_columns:
+        cols = [
+            "Ticket Summary",
+            "Ticket Details",
+            "Problem",
+            "Cause"
+        ]
+
+        for col in cols:
 
             if col in row and pd.notna(row[col]):
 
@@ -93,9 +53,92 @@ class FineTunedClassifier:
         return " | ".join(parts)
 
 
-    # =====================================
-    # Batch prediction
-    # =====================================
+    df["text"] = df.apply(build_text, axis=1)
+
+
+    categories = df["ISSUE CAT"].unique()
+
+    label_map = {cat: i for i, cat in enumerate(categories)}
+
+    with open(LABEL_MAP_PATH, "w") as f:
+
+        json.dump(label_map, f)
+
+
+    train_examples = []
+
+    for _, row in df.iterrows():
+
+        train_examples.append(
+            InputExample(texts=[row["text"], row["ISSUE CAT"]])
+        )
+
+
+    model = SentenceTransformer(
+        "sentence-transformers/all-MiniLM-L6-v2"
+    )
+
+
+    dataloader = DataLoader(
+        train_examples,
+        shuffle=True,
+        batch_size=16
+    )
+
+
+    loss = losses.CosineSimilarityLoss(model)
+
+
+    model.fit(
+
+        train_objectives=[(dataloader, loss)],
+
+        epochs=3,
+
+        warmup_steps=100
+    )
+
+
+    model.save(MODEL_PATH)
+
+    print("Model trained and saved.")
+
+
+# ==========================
+# Classifier
+# ==========================
+
+class AutoClassifier:
+
+    def __init__(self):
+
+        train_model_if_missing()
+
+        self.model = SentenceTransformer(MODEL_PATH)
+
+        with open(LABEL_MAP_PATH) as f:
+
+            label_map = json.load(f)
+
+        self.categories = list(label_map.keys())
+
+        self.cat_embeddings = self.model.encode(
+            self.categories
+        )
+
+
+    def build_context(self, row):
+
+        parts = []
+
+        for col in row.index:
+
+            if pd.notna(row[col]):
+
+                parts.append(str(row[col]))
+
+        return " | ".join(parts)
+
 
     def predict_batch(self, df):
 
@@ -104,58 +147,53 @@ class FineTunedClassifier:
             axis=1
         ).tolist()
 
-        ticket_embeddings = self.model.encode(
+        embeddings = self.model.encode(
             texts,
-            batch_size=32,
-            show_progress_bar=False
+            batch_size=32
         )
+
 
         predicted = []
         confidence = []
 
-        for emb in ticket_embeddings:
+        for emb in embeddings:
 
             scores = util.cos_sim(
                 emb,
-                self.label_embeddings
+                self.cat_embeddings
             )[0]
 
             idx = scores.argmax().item()
 
-            predicted.append(self.label_texts[idx])
+            predicted.append(
+                self.categories[idx]
+            )
 
-            confidence.append(float(scores[idx]))
+            confidence.append(
+                float(scores[idx])
+            )
 
         return predicted, confidence
 
 
-# =====================================
-# Main function used by dashboard
-# =====================================
+# ==========================
+# Main function
+# ==========================
 
 def classify_file(input_file, output_file):
 
-    clf = FineTunedClassifier()
+    clf = AutoClassifier()
 
     df = pd.read_excel(input_file)
 
     df.columns = df.columns.str.strip()
 
-    predicted, confidence = clf.predict_batch(df)
+    pred, conf = clf.predict_batch(df)
 
-    df["Predicted Category"] = predicted
+    df["Predicted Category"] = pred
 
-    df["Confidence"] = confidence
+    df["Confidence"] = conf
 
-    # Clean encoding
-    for col in df.columns:
+    df.to_excel(output_file, index=False)
 
-        df[col] = df[col].astype(str).apply(clean_text)
-
-    df.to_excel(
-        output_file,
-        index=False,
-        engine="openpyxl"
-    )
-
-    print("Classification complete:", output_file)
+    print("Classification complete.")
