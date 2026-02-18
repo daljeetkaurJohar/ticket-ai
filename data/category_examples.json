@@ -1,0 +1,18 @@
+{
+  "IT - System Access issue": [
+    "User unable to login",
+    "Access denied to system",
+    "Permission issue for module"
+  ],
+
+  "IT - Master Data/ mapping issue": [
+    "Mapping not correct",
+    "Master data missing",
+    "Mapping issue in system"
+  ],
+
+  "User - Logic mistakes in excel vs system": [
+    "Excel values not matching system",
+    "Mismatch between excel and system"
+  ]
+}
