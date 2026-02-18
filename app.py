@@ -8,7 +8,7 @@ OUTPUT = "output/classified_tickets.xlsx"
 
 def generate_full_report(df, output_file):
 
-    # CRITICAL FIX: remove hidden spaces from column names
+    # CRITICAL FIX: remove hidden spaces in column names
     df.columns = df.columns.str.strip()
 
     with pd.ExcelWriter(output_file, engine="xlsxwriter") as writer:
@@ -23,6 +23,7 @@ def generate_full_report(df, output_file):
 
         worksheet = writer.sheets["Detailed Data"]
 
+        # Auto adjust column width
         for i, col in enumerate(df.columns):
             worksheet.set_column(i, i, 25)
 
@@ -32,6 +33,7 @@ def generate_full_report(df, output_file):
         # =============================
 
         summary = df["Predicted Category"].value_counts().reset_index()
+
         summary.columns = ["Category", "Count"]
 
         summary.to_excel(writer, sheet_name="Summary", index=False)
@@ -108,7 +110,7 @@ def generate_full_report(df, output_file):
 
 
         # =============================
-        # Sheet 7: Charts
+        # Sheet 7: Charts Dashboard
         # =============================
 
         chart_sheet = workbook.add_worksheet("Charts")
@@ -122,6 +124,9 @@ def generate_full_report(df, output_file):
         })
 
         chart.set_title({"name": "Ticket Category Distribution"})
+        chart.set_x_axis({"name": "Category"})
+        chart.set_y_axis({"name": "Count"})
+
         chart_sheet.insert_chart("B2", chart)
 
 
@@ -133,30 +138,37 @@ def generate_full_report(df, output_file):
         })
 
         pie_chart.set_title({"name": "Category Share"})
+
         chart_sheet.insert_chart("B20", pie_chart)
 
 
 
 if __name__ == "__main__":
 
+    print("Starting Enterprise Ticket Classification...")
+
     if not os.path.exists(INPUT):
 
-        print("Input file not found:", INPUT)
+        print("ERROR: Input file not found:", INPUT)
 
     else:
 
-        print("Running classification...")
-
+        # Step 1: Run classification
         classify_file(INPUT, OUTPUT)
 
-        print("Classification complete.")
+        print("Classification completed.")
 
+
+        # Step 2: Load classified file
         df = pd.read_excel(OUTPUT)
 
-        # CRITICAL FIX HERE ALSO
+        # CRITICAL FIX
         df.columns = df.columns.str.strip()
 
+
+        # Step 3: Generate full enterprise report
         generate_full_report(df, OUTPUT)
 
         print("Enterprise report generated successfully.")
-        print("Output file:", OUTPUT)
+
+        print("Output file location:", OUTPUT)
