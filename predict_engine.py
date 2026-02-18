@@ -1,6 +1,16 @@
 
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
+def clean_text(text):
+    if isinstance(text, str):
+        text = text.replace("â€“", "-")
+        text = text.replace("â€”", "-")
+        text = text.replace("â€˜", "'")
+        text = text.replace("â€™", "'")
+        text = text.replace("â€œ", '"')
+        text = text.replace("â€", '"')
+    return text
+
 
 MODEL_NAME = "all-MiniLM-L6-v2"
 
@@ -48,9 +58,14 @@ def classify_file(input_file, output_file):
         categories.append(cat)
         confidences.append(conf)
 
-    df["Predicted Category"] = categories
-    df["Confidence"] = confidences
 
-    df.to_excel(output_file, index=False)
+df["Predicted Category"] = categories
+df["Confidence"] = confidences
 
-    print("Classification complete:", output_file)
+# Fix encoding
+for col in df.columns:
+    df[col] = df[col].astype(str).apply(clean_text)
+
+df.to_excel(output_file, index=False, engine="openpyxl")
+
+print("Classification complete:", output_file)
