@@ -1,217 +1,215 @@
 {
-  "IT - System linkage issue": [
-    "Data not syncing between systems",
-    "Integration between source and planning system failed",
-    "Interface not working between applications",
-    "Data from upstream system not reflecting downstream",
-    "Connection between systems broken",
-    "System not pulling data from source",
-    "Link between Anaplan and data source not working",
-    "Integration failure causing missing data",
-    "Data pipeline not functioning correctly",
-    "System unable to retrieve linked information",
-    "Upstream system changes not reflected downstream",
-    "Automatic data sync stopped working",
-    "Interface job failed causing missing values",
-    "Linkage between modules broken",
-    "Cross-system data flow interrupted"
-  ],
+  "IT - System linkage issue": {
+    "definition": "System integration or linkage between modules or systems is broken or not functioning correctly",
+    "symptoms": [
+      "data not flowing between systems",
+      "integration not working",
+      "system not linked",
+      "interface failure",
+      "connection between modules missing"
+    ],
+    "causes": [
+      "broken integration",
+      "system linkage failure",
+      "interface configuration issue",
+      "ETL failure",
+      "sync issue"
+    ],
+    "examples": [
+      "Data not flowing from SAP to Anaplan",
+      "Integration between planning modules failed",
+      "System linkage missing for cost center",
+      "Interface not updating data"
+    ]
+  },
 
-  "IT - System Access issue": [
-    "User unable to login to system",
-    "Access denied error when opening module",
-    "User does not have required permissions",
-    "Authorization missing for workspace access",
-    "User account not provisioned correctly",
-    "Unable to access planning model",
-    "Permission issue preventing system access",
-    "User locked out of application",
-    "Role not assigned correctly",
-    "Access revoked unexpectedly",
-    "Authentication failure during login",
-    "User unable to open planning module",
-    "Security access restriction error",
-    "User cannot access dashboard",
-    "Workspace access not granted"
-  ],
+  "IT - System Access issue": {
+    "definition": "User cannot access system due to authorization, login, or permission problems",
+    "symptoms": [
+      "unable to login",
+      "access denied",
+      "permission error",
+      "user cannot access system",
+      "authorization failure"
+    ],
+    "causes": [
+      "role missing",
+      "user not provisioned",
+      "incorrect access rights",
+      "authentication failure"
+    ],
+    "examples": [
+      "User unable to access Anaplan workspace",
+      "Access denied to planning model",
+      "User not able to login to system"
+    ]
+  },
 
-  "IT - System Version issue": [
-    "Incorrect version deployed in production",
-    "Application running outdated version",
-    "System version mismatch between environments",
-    "New release changes not reflected",
-    "Version upgrade not applied properly",
-    "Model version inconsistency detected",
-    "Production version not updated",
-    "Incorrect application version installed",
-    "System rollback to previous version",
-    "Version synchronization issue",
-    "Planning model version incorrect",
-    "Update not reflected in system",
-    "System showing old version",
-    "Version conflict between environments",
-    "Release version mismatch causing issue"
-  ],
+  "IT - System Version issue": {
+    "definition": "Version mismatch or incorrect version used in system",
+    "symptoms": [
+      "wrong version selected",
+      "version mismatch",
+      "version not available",
+      "incorrect version data"
+    ],
+    "causes": [
+      "version configuration issue",
+      "incorrect version mapping",
+      "system version error"
+    ],
+    "examples": [
+      "Plan version not visible",
+      "Wrong forecast version showing",
+      "Version mismatch between modules"
+    ]
+  },
 
-  "IT - Data entry handholding": [
-    "User needs help entering planning data",
-    "Support required to input values",
-    "User unsure how to submit forecast",
-    "Guidance needed for data entry process",
-    "User requesting assistance for input",
-    "Help required to populate planning model",
-    "User unfamiliar with data submission process",
-    "Need assistance entering budget values",
-    "User needs support updating system",
-    "Training required for data entry",
-    "User cannot understand entry process",
-    "Support needed for updating planning data",
-    "Help required to complete input",
-    "User unsure where to enter data",
-    "Manual entry assistance required"
-  ],
+  "IT - Data entry handholding": {
+    "definition": "User needs IT support to enter or update data correctly in system",
+    "symptoms": [
+      "need help entering data",
+      "unable to input data",
+      "user requires guidance"
+    ],
+    "causes": [
+      "system usability issue",
+      "user unfamiliar with system",
+      "entry process unclear"
+    ],
+    "examples": [
+      "User needs help updating forecast",
+      "Support required to enter planning data"
+    ]
+  },
 
-  "IT - Master Data/ mapping issue": [
-    "Cost center mapping missing",
-    "Entity mapping not configured",
-    "Master data not maintained correctly",
-    "Mapping configuration incorrect",
-    "Hierarchy mapping not working",
-    "System not recognizing mapped entity",
-    "Dimension mapping missing",
-    "Incorrect master data setup",
-    "Mapping not reflecting in planning model",
-    "Invalid mapping configuration",
-    "Entity not linked properly",
-    "Mapping error causing incorrect output",
-    "Master data setup incomplete",
-    "Incorrect hierarchy structure",
-    "System unable to recognize mapping"
-  ],
+  "IT - Master Data/ mapping issue": {
+    "definition": "Mapping or master data configuration issue in system",
+    "symptoms": [
+      "mapping missing",
+      "master data not mapped",
+      "mapping incorrect"
+    ],
+    "causes": [
+      "mapping not configured",
+      "master data setup incomplete",
+      "mapping error"
+    ],
+    "examples": [
+      "Cost center mapping missing",
+      "Entity not mapped to hierarchy"
+    ]
+  },
 
-  "User - Mapping missing": [
-    "User did not provide mapping file",
-    "Mapping information missing from business",
-    "Required mapping not shared by user",
-    "User forgot to submit mapping",
-    "Mapping details incomplete",
-    "Business team has not provided mapping",
-    "User mapping file missing",
-    "Mapping not available from user side",
-    "Mapping input not submitted",
-    "Business did not update mapping",
-    "User provided incomplete mapping",
-    "Mapping not shared during planning cycle",
-    "User failed to upload mapping file",
-    "Mapping data missing from submission",
-    "Mapping template not filled correctly"
-  ],
+  "User - Mapping missing": {
+    "definition": "User has not provided required mapping information",
+    "symptoms": [
+      "mapping not provided",
+      "user did not give mapping",
+      "mapping information missing"
+    ],
+    "causes": [
+      "user input missing",
+      "mapping not submitted"
+    ],
+    "examples": [
+      "User has not shared mapping file",
+      "Mapping not provided by business team"
+    ]
+  },
 
-  "User - Master data delayed input": [
-    "User submitted data after deadline",
-    "Delay in master data submission",
-    "Business provided input late",
-    "Master data not updated on time",
-    "Late submission by user",
-    "Delayed input causing system issue",
-    "User failed to meet submission timeline",
-    "Business did not submit required data timely",
-    "Planning input provided late",
-    "User input delayed due to business constraints",
-    "Data received after cutoff date",
-    "Delayed submission affecting planning cycle",
-    "User submitted master data late",
-    "Late upload of planning data",
-    "Delay in business data input"
-  ],
+  "User - Master data delayed input": {
+    "definition": "User delayed providing required master data",
+    "symptoms": [
+      "data not provided yet",
+      "master data delayed"
+    ],
+    "causes": [
+      "user delay",
+      "business input pending"
+    ],
+    "examples": [
+      "User has not submitted master data",
+      "Planning inputs pending from business"
+    ]
+  },
 
-  "User - Logic changes during ABP": [
-    "Business changed planning assumptions",
-    "User modified calculation logic",
-    "Logic updated during planning cycle",
-    "User changed business logic unexpectedly",
-    "Planning methodology changed by business",
-    "User altered calculation formula",
-    "Business updated forecast logic",
-    "User changed logic causing variance",
-    "Planning assumptions revised",
-    "Business logic modified mid-cycle",
-    "User updated formulas during ABP",
-    "Logic change affecting planning outputs",
-    "User revised calculation approach",
-    "Business updated planning model logic",
-    "User modified planning structure"
-  ],
+  "User - Logic changes during ABP": {
+    "definition": "User requested change in planning logic or calculation",
+    "symptoms": [
+      "logic change requested",
+      "calculation change required"
+    ],
+    "causes": [
+      "planning logic update",
+      "business requirement change"
+    ],
+    "examples": [
+      "User requested change in planning logic",
+      "ABP logic needs modification"
+    ]
+  },
 
-  "User - Master data incorporation in system": [
-    "User requested new entity addition",
-    "Business asked to add new cost center",
-    "New hierarchy requested by user",
-    "Master data addition requested",
-    "User requested new dimension",
-    "Business wants to incorporate new structure",
-    "User asked for master data update",
-    "System update requested by business",
-    "New business entity needs to be added",
-    "User requested new mapping incorporation",
-    "Business requested structural update",
-    "New department addition required",
-    "User wants to update hierarchy",
-    "New data requested to be added",
-    "Business change requires system update"
-  ],
+  "User - Master data incorporation in system": {
+    "definition": "User provided new master data that needs to be added to system",
+    "symptoms": [
+      "new entity needs to be added",
+      "new master data provided"
+    ],
+    "causes": [
+      "new business entity",
+      "new cost center added"
+    ],
+    "examples": [
+      "New cost center needs to be created",
+      "Add new product in system"
+    ]
+  },
 
-  "User - System Knowledge Gap": [
-    "User does not understand system functionality",
-    "Training required for planning system",
-    "User unsure how system works",
-    "Business unfamiliar with process",
-    "User lacks system knowledge",
-    "Incorrect usage due to lack of understanding",
-    "User requires system training",
-    "Business team confused about process",
-    "User unsure how to perform action",
-    "User lacks technical knowledge",
-    "User made mistake due to lack of training",
-    "Business unfamiliar with planning model",
-    "User confused about workflow",
-    "Training needed for new users",
-    "User unsure how to operate system"
-  ],
+  "User - System Knowledge Gap": {
+    "definition": "User does not know how to use system properly",
+    "symptoms": [
+      "user unsure how to use system",
+      "training required"
+    ],
+    "causes": [
+      "lack of system training",
+      "user unfamiliar with system"
+    ],
+    "examples": [
+      "User needs help using planning module",
+      "User not aware of system process"
+    ]
+  },
 
-  "User - Logic mistakes in excel vs system": [
-    "Excel values do not match system",
-    "Spreadsheet calculations incorrect",
-    "Mismatch between excel and system",
-    "User formula error in excel",
-    "Excel logic incorrect",
-    "Planning values differ from excel",
-    "Spreadsheet contains wrong calculations",
-    "Excel model incorrect",
-    "Manual calculation incorrect",
-    "Excel formula mismatch",
-    "System and excel values inconsistent",
-    "User calculation error in spreadsheet",
-    "Excel logic differs from system logic",
-    "Forecast mismatch due to excel error",
-    "Excel file contains incorrect data"
-  ],
+  "User - Logic mistakes in excel vs system": {
+    "definition": "Mismatch between Excel logic and system logic",
+    "symptoms": [
+      "excel mismatch",
+      "values different in excel and system"
+    ],
+    "causes": [
+      "incorrect excel formula",
+      "manual error"
+    ],
+    "examples": [
+      "Excel data not matching system",
+      "Calculation mismatch"
+    ]
+  },
 
-  "User - Multiple versions issue in excel": [
-    "Multiple excel versions exist",
-    "User working on wrong version",
-    "Spreadsheet version mismatch",
-    "Conflicting excel files submitted",
-    "Duplicate excel versions causing confusion",
-    "User submitted outdated file",
-    "Different versions of planning file exist",
-    "Excel version inconsistency",
-    "User used incorrect spreadsheet version",
-    "Old version of excel used",
-    "Spreadsheet duplication issue",
-    "User uploaded wrong version",
-    "Version control issue in excel",
-    "Multiple planning files causing mismatch",
-    "Excel version conflict detected"
-  ]
+  "User - Multiple versions issue in excel": {
+    "definition": "Multiple Excel versions causing confusion",
+    "symptoms": [
+      "multiple excel versions",
+      "wrong excel file used"
+    ],
+    "causes": [
+      "file version confusion"
+    ],
+    "examples": [
+      "User using outdated excel",
+      "Multiple excel files exist"
+    ]
+  }
 }
