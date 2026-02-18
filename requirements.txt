@@ -6,4 +6,5 @@ torch
 openpyxl
 matplotlib
 xlsxwriter
+plotly
 
