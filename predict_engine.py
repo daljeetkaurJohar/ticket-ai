@@ -1,13 +1,14 @@
 import pandas as pd
 import json
 import os
+import numpy as np
 
 from sentence_transformers import SentenceTransformer, util
 
 
-# ======================================
-# Fix encoding issues
-# ======================================
+# ==========================
+# Clean text
+# ==========================
 
 def clean_text(text):
 
@@ -17,144 +18,130 @@ def clean_text(text):
         text = text.replace("â€”", "-")
         text = text.replace("â€˜", "'")
         text = text.replace("â€™", "'")
-        text = text.replace("â€œ", '"')
-        text = text.replace("â€", '"')
 
     return text
 
 
-# ======================================
-# FAST Semantic Prototype Classifier
-# ======================================
+# ==========================
+# Enhanced Semantic Classifier
+# ==========================
 
-class SemanticPrototypeClassifier:
+class EnterpriseSemanticClassifier:
 
     def __init__(self):
 
-        print("Loading semantic classifier...")
+        print("Loading enterprise classifier...")
 
-        # Faster model
         self.model = SentenceTransformer(
-            "sentence-transformers/paraphrase-MiniLM-L3-v2",
-            device="cpu"
+            "sentence-transformers/all-MiniLM-L6-v2"
         )
 
-        examples_path = "data/category_examples.json"
+        path = "data/category_examples.json"
 
-        if not os.path.exists(examples_path):
+        if not os.path.exists(path):
 
-            raise Exception(
-                "category_examples.json not found in data folder."
-            )
+            raise Exception("category_examples.json missing")
 
-        with open(examples_path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
 
             self.examples = json.load(f)
 
-
-        # Flatten examples
-        self.example_texts = []
-        self.example_labels = []
+        # Compute centroid per category
+        self.category_centroids = {}
 
         for category, texts in self.examples.items():
 
-            for text in texts:
+            embeddings = self.model.encode(
+                texts,
+                batch_size=32,
+                show_progress_bar=False
+            )
 
-                self.example_texts.append(text)
+            centroid = np.mean(embeddings, axis=0)
 
-                self.example_labels.append(category)
-
-
-        # Encode example embeddings ONCE
-        self.example_embeddings = self.model.encode(
-            self.example_texts,
-            batch_size=32,
-            show_progress_bar=False
-        )
+            self.category_centroids[category] = centroid
 
         print("Classifier ready.")
 
 
-    # ======================================
-    # Batch prediction (FAST)
-    # ======================================
+    def build_context(self, row):
+
+        important_columns = [
+            "Ticket Summary",
+            "Ticket Details",
+            "Problem",
+            "Cause",
+            "Work notes",
+            "Assignment Group",
+            "Team"
+        ]
+
+        parts = []
+
+        for col in row.index:
+
+            value = row[col]
+
+            if pd.notna(value):
+
+                parts.append(str(value))
+
+        return " | ".join(parts)
+
 
     def predict_batch(self, df):
 
-        texts = df.apply(
-
-            lambda row: " | ".join(
-                [f"{col}: {row[col]}" for col in df.columns if pd.notna(row[col])]
-            ),
-
+        contexts = df.apply(
+            lambda row: self.build_context(row),
             axis=1
-
         ).tolist()
 
-
-        # Encode ALL tickets at once
         ticket_embeddings = self.model.encode(
-            texts,
+            contexts,
             batch_size=32,
             show_progress_bar=False
         )
 
+        categories = list(self.category_centroids.keys())
+
+        centroid_matrix = np.vstack(
+            [self.category_centroids[c] for c in categories]
+        )
 
         predicted = []
-        confidences = []
+        confidence = []
 
         for emb in ticket_embeddings:
 
-            scores = util.cos_sim(
-                emb,
-                self.example_embeddings
-            )[0]
+            scores = util.cos_sim(emb, centroid_matrix)[0]
 
-            best_idx = scores.argmax().item()
+            idx = scores.argmax().item()
 
-            predicted.append(
-                self.example_labels[best_idx]
-            )
+            predicted.append(categories[idx])
 
-            confidences.append(
-                float(scores[best_idx])
-            )
+            confidence.append(float(scores[idx]))
+
+        return predicted, confidence
 
 
-        return predicted, confidences
-
-
-# ======================================
-# Main classification function
-# ======================================
+# ==========================
+# Main function
+# ==========================
 
 def classify_file(input_file, output_file):
 
-    clf = SemanticPrototypeClassifier()
+    clf = EnterpriseSemanticClassifier()
 
     df = pd.read_excel(input_file)
 
-    # Fix column names
     df.columns = df.columns.str.strip()
 
-    # FAST batch classification
-    predicted, confidences = clf.predict_batch(df)
+    predicted, conf = clf.predict_batch(df)
 
     df["Predicted Category"] = predicted
 
-    df["Confidence"] = confidences
+    df["Confidence"] = conf
 
+    df.to_excel(output_file, index=False)
 
-    # Fix encoding
-    for col in df.columns:
-
-        df[col] = df[col].astype(str).apply(clean_text)
-
-
-    df.to_excel(
-        output_file,
-        index=False,
-        engine="openpyxl"
-    )
-
-    print("Classification complete:", output_file)
+    print("Classification complete.")
