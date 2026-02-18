@@ -1,19 +1,20 @@
 import pandas as pd
-import json
-import os
 import numpy as np
+import os
 
 from sentence_transformers import SentenceTransformer, util
 
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
+CONFIDENCE_THRESHOLD = 0.55
 
-class EnterpriseClassifier:
+
+class EnterpriseHybridClassifier:
 
     def __init__(self):
 
-        print("Loading enterprise classifier...")
+        print("Loading enterprise hybrid classifier...")
 
         self.model = SentenceTransformer(MODEL_NAME)
 
@@ -24,19 +25,21 @@ class EnterpriseClassifier:
         df = df.dropna(subset=["ISSUE CAT"])
 
 
+        # Build strong semantic context
         def build_context(row):
 
-            cols = [
+            priority_cols = [
                 "Ticket Summary",
                 "Ticket Details",
                 "Problem",
                 "Cause",
-                "Assignment Group"
+                "Assignment Group",
+                "Work notes"
             ]
 
             parts = []
 
-            for col in cols:
+            for col in priority_cols:
 
                 if col in row and pd.notna(row[col]):
 
@@ -48,9 +51,9 @@ class EnterpriseClassifier:
         df["context"] = df.apply(build_context, axis=1)
 
 
-        # Compute centroid embedding per category
+        # Create centroids
         self.categories = []
-        self.centroids = []
+        centroid_list = []
 
         for category, group in df.groupby("ISSUE CAT"):
 
@@ -64,12 +67,12 @@ class EnterpriseClassifier:
 
             centroid = np.mean(embeddings, axis=0)
 
+            centroid_list.append(centroid)
             self.categories.append(category)
-            self.centroids.append(centroid)
 
-        self.centroids = np.vstack(self.centroids)
+        self.centroids = np.vstack(centroid_list)
 
-        print("Classifier ready.")
+        print("Hybrid classifier ready.")
 
 
     def predict_batch(self, df):
@@ -101,19 +104,48 @@ class EnterpriseClassifier:
 
         for emb in embeddings:
 
-            scores = util.cos_sim(emb, self.centroids)[0]
+            scores = util.cos_sim(
+                emb,
+                self.centroids
+            )[0]
 
-            idx = scores.argmax().item()
+            scores_np = scores.cpu().numpy()
 
-            predicted.append(self.categories[idx])
-            confidence.append(float(scores[idx]))
+            best_idx = np.argmax(scores_np)
+            best_score = scores_np[best_idx]
+
+            # Secondary match
+            sorted_idx = np.argsort(scores_np)[::-1]
+
+            second_idx = sorted_idx[1]
+            second_score = scores_np[second_idx]
+
+
+            # Hybrid decision logic
+            if best_score < CONFIDENCE_THRESHOLD:
+
+                category = "Uncertain"
+
+            elif best_score - second_score < 0.05:
+
+                # choose safer category
+                category = self.categories[second_idx]
+
+            else:
+
+                category = self.categories[best_idx]
+
+
+            predicted.append(category)
+            confidence.append(float(best_score))
+
 
         return predicted, confidence
 
 
 def classify_file(input_file, output_file):
 
-    clf = EnterpriseClassifier()
+    clf = EnterpriseHybridClassifier()
 
     df = pd.read_excel(input_file)
 
@@ -127,4 +159,4 @@ def classify_file(input_file, output_file):
 
     df.to_excel(output_file, index=False)
 
-    print("Classification complete.")
+    print("Enterprise hybrid classification complete.")
