@@ -5,9 +5,9 @@ import os
 from sentence_transformers import SentenceTransformer, util
 
 
-# ================================
+# ======================================
 # Fix encoding issues
-# ================================
+# ======================================
 
 def clean_text(text):
 
@@ -23,84 +23,110 @@ def clean_text(text):
     return text
 
 
-# ================================
-# Semantic Prototype Classifier
-# ================================
+# ======================================
+# FAST Semantic Prototype Classifier
+# ======================================
 
 class SemanticPrototypeClassifier:
 
     def __init__(self):
 
-        print("Loading semantic prototype classifier...")
+        print("Loading semantic classifier...")
 
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
+        # Faster model
+        self.model = SentenceTransformer(
+            "sentence-transformers/paraphrase-MiniLM-L3-v2",
+            device="cpu"
+        )
 
         examples_path = "data/category_examples.json"
 
         if not os.path.exists(examples_path):
 
             raise Exception(
-                "category_examples.json not found. Run generate_examples.py first."
+                "category_examples.json not found in data folder."
             )
 
         with open(examples_path, "r", encoding="utf-8") as f:
 
             self.examples = json.load(f)
 
-        self.example_embeddings = {}
+
+        # Flatten examples
+        self.example_texts = []
+        self.example_labels = []
 
         for category, texts in self.examples.items():
 
-            if texts:
+            for text in texts:
 
-                self.example_embeddings[category] = self.model.encode(texts)
+                self.example_texts.append(text)
+
+                self.example_labels.append(category)
+
+
+        # Encode example embeddings ONCE
+        self.example_embeddings = self.model.encode(
+            self.example_texts,
+            batch_size=32,
+            show_progress_bar=False
+        )
 
         print("Classifier ready.")
 
 
-    def build_context(self, row):
+    # ======================================
+    # Batch prediction (FAST)
+    # ======================================
 
-        parts = []
+    def predict_batch(self, df):
 
-        for col in row.index:
+        texts = df.apply(
 
-            value = row[col]
+            lambda row: " | ".join(
+                [f"{col}: {row[col]}" for col in df.columns if pd.notna(row[col])]
+            ),
 
-            if pd.notna(value):
+            axis=1
 
-                parts.append(f"{col}: {value}")
-
-        return " | ".join(parts)
-
-
-    def predict(self, row):
-
-        text = self.build_context(row)
-
-        ticket_embedding = self.model.encode(text)
-
-        best_category = None
-
-        best_score = -1
-
-        for category, embeddings in self.example_embeddings.items():
-
-            scores = util.cos_sim(ticket_embedding, embeddings)
-
-            score = float(scores.max())
-
-            if score > best_score:
-
-                best_score = score
-
-                best_category = category
-
-        return best_category, best_score
+        ).tolist()
 
 
-# ================================
+        # Encode ALL tickets at once
+        ticket_embeddings = self.model.encode(
+            texts,
+            batch_size=32,
+            show_progress_bar=False
+        )
+
+
+        predicted = []
+        confidences = []
+
+        for emb in ticket_embeddings:
+
+            scores = util.cos_sim(
+                emb,
+                self.example_embeddings
+            )[0]
+
+            best_idx = scores.argmax().item()
+
+            predicted.append(
+                self.example_labels[best_idx]
+            )
+
+            confidences.append(
+                float(scores[best_idx])
+            )
+
+
+        return predicted, confidences
+
+
+# ======================================
 # Main classification function
-# ================================
+# ======================================
 
 def classify_file(input_file, output_file):
 
@@ -108,26 +134,27 @@ def classify_file(input_file, output_file):
 
     df = pd.read_excel(input_file)
 
+    # Fix column names
     df.columns = df.columns.str.strip()
 
-    predicted_categories = []
-    confidences = []
+    # FAST batch classification
+    predicted, confidences = clf.predict_batch(df)
 
-    for _, row in df.iterrows():
-
-        category, confidence = clf.predict(row)
-
-        predicted_categories.append(category)
-        confidences.append(confidence)
-
-    df["Predicted Category"] = predicted_categories
+    df["Predicted Category"] = predicted
 
     df["Confidence"] = confidences
 
+
+    # Fix encoding
     for col in df.columns:
 
         df[col] = df[col].astype(str).apply(clean_text)
 
-    df.to_excel(output_file, index=False, engine="openpyxl")
+
+    df.to_excel(
+        output_file,
+        index=False,
+        engine="openpyxl"
+    )
 
     print("Classification complete:", output_file)
