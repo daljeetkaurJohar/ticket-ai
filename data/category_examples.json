@@ -1,122 +1,98 @@
-{
-  "IT - System linkage issue": {
+[
+  {
+    "Category": "IT - System linkage issue",
     "Root_Cause_Category": "Technical - Infrastructure",
-    "Issues": [
-      "API or Data hub sync failure between source and target",
-      "Upstream data latency causing synchronization delays",
-      "Broken interface linkage between planning and reporting modules",
-      "Anaplan Connect or automated data transfer failure",
-      "Real-time data flow disruption between integrated applications"
-    ]
+    "Issue_Detail": "API or Data hub sync failure between source and target systems",
+    "Business_Impact": "Data latency leading to stale reporting and delayed decision-making",
+    "Resolution_Path": "Restart Integration Services / Check API Authentication",
+    "Complexity_Level": "High"
   },
-  "IT - System Access issue": {
-    "Root_Cause_Category": "Technical - Security/Identity",
-    "Issues": [
-      "SSO or Login authentication failure",
-      "Workspace or Model permission mismatch for user role",
-      "Role-based access control (RBAC) missing or unassigned",
-      "User account provisioning or deactivation error",
-      "Restricted functionality access within specific modules"
-    ]
+  {
+    "Category": "IT - System Access issue",
+    "Root_Cause_Category": "Technical - Security & Identity",
+    "Issue_Detail": "SSO or Login authentication failure preventing workspace entry",
+    "Business_Impact": "Total productivity loss for affected users during critical cycles",
+    "Resolution_Path": "Verify Okta/Azure AD status or Reset User Permissions",
+    "Complexity_Level": "Low"
   },
-  "IT - System Version issue": {
+  {
+    "Category": "IT - System Version issue",
     "Root_Cause_Category": "Technical - Environment Management",
-    "Issues": [
-      "ALM (Application Lifecycle Management) mismatch between environments",
-      "Incorrect system version or build deployed to production",
-      "Discrepancy between Development, Test, and Production environments",
-      "Stale model version showing outdated architectural changes",
-      "Version conflict causing calculation or logic inconsistencies"
-    ]
+    "Issue_Detail": "ALM mismatch where Prod is running an outdated model build",
+    "Business_Impact": "Calculation inconsistencies between Development and Production",
+    "Resolution_Path": "Perform Model Synchronization via ALM Tools",
+    "Complexity_Level": "Medium"
   },
-  "IT - Data entry handholding": {
+  {
+    "Category": "IT - Data entry handholding",
     "Root_Cause_Category": "User - Support Requirement",
-    "Issues": [
-      "Functional guidance required for first-time data entry",
-      "User navigation assistance needed for planning templates",
-      "Clarification required on mandatory field requirements",
-      "Support requested for manual submission workflow",
-      "Step-by-step walkthrough of the input process"
-    ]
+    "Issue_Detail": "User requires step-by-step guidance to navigate input templates",
+    "Business_Impact": "Increased support ticket volume and slower planning cycle",
+    "Resolution_Path": "Provide SOP Documentation or 1-on-1 Training Session",
+    "Complexity_Level": "Low"
   },
-  "IT - Master Data/ mapping issue": {
+  {
+    "Category": "IT - Master Data/ mapping issue",
     "Root_Cause_Category": "Technical - Configuration",
-    "Issues": [
-      "Metadata or Hierarchy loading error within system tables",
-      "System-side mapping configuration corruption or missing entries",
-      "Technical dimension mapping error preventing data flow",
-      "Cost center or entity hierarchy setup failure in backend",
-      "Invalid system logic for auto-mapping new business entities"
-    ]
+    "Issue_Detail": "System-side mapping table corruption or missing technical dimensions",
+    "Business_Impact": "Structural data gaps where new entities are not recognized",
+    "Resolution_Path": "Rebuild Backend Mapping Tables / Refresh Metadata",
+    "Complexity_Level": "Medium"
   },
-  "User - Mapping missing": {
+  {
+    "Category": "User - Mapping missing",
     "Root_Cause_Category": "User - Input Omission",
-    "Issues": [
-      "Business mapping details not provided for new entities",
-      "Required mapping logic missing from user-managed files",
-      "User failed to update mapping structures post-reorganization",
-      "Incomplete mapping attributes provided by business owner",
-      "User-driven mapping file contains empty or invalid records"
-    ]
+    "Issue_Detail": "Business mapping details not provided for newly created entities",
+    "Business_Impact": "Data flows into 'Unmapped' buckets, requiring manual re-work",
+    "Resolution_Path": "Request Mapping Logic from Business Process Owner",
+    "Complexity_Level": "Low"
   },
-  "User - Master data delayed input": {
+  {
+    "Category": "User - Master data delayed input",
     "Root_Cause_Category": "Process - Compliance Failure",
-    "Issues": [
-      "Master data submission received after the processing cutoff",
-      "Delayed update of business-critical hierarchy inputs",
-      "User failed to provide required master data within the SLA",
-      "Late data inputs causing downstream reporting delays",
-      "Business inputs received post-cycle deadline"
-    ]
+    "Issue_Detail": "Master data updates submitted after the official processing cutoff",
+    "Business_Impact": "Reporting delays and potential breach of external SLAs",
+    "Resolution_Path": "Enforce Cutoff Policy / Escalate to Finance Leadership",
+    "Complexity_Level": "Low"
   },
-  "User - Logic changes during ABP": {
+  {
+    "Category": "User - Logic changes during ABP",
     "Root_Cause_Category": "Process - Scope Drift",
-    "Issues": [
-      "In-cycle calculation logic modifications requested by business",
-      "ABP methodology shift occurring during active planning window",
-      "Unannounced changes to business assumptions or drivers",
-      "Manual formula overrides impacting historical or forecast outputs",
-      "Logic updates requested after initial data submission"
-    ]
+    "Issue_Detail": "Calculation methodology changed by business during live planning",
+    "Business_Impact": "High risk of formula errors and loss of audit trail integrity",
+    "Resolution_Path": "Initiate Formal Change Request / Impact Analysis",
+    "Complexity_Level": "High"
   },
-  "User - Master data incorporation in system": {
+  {
+    "Category": "User - Master data incorporation in system",
     "Root_Cause_Category": "Process - Change Request",
-    "Issues": [
-      "Business request for new entity or cost center addition",
-      "Request to modify existing hierarchy or dimension structure",
-      "User requirement for new data dimension or reporting tag",
-      "Ad-hoc request to incorporate structural business changes",
-      "Updates required to reflect organizational restructuring"
-    ]
+    "Issue_Detail": "Ad-hoc request to add new entities or reorganize hierarchies",
+    "Business_Impact": "Strains maintenance resources; requires model structural updates",
+    "Resolution_Path": "Add New Dimension Members to Model / Update Hierarchies",
+    "Complexity_Level": "Medium"
   },
-  "User - System Knowledge Gap": {
+  {
+    "Category": "User - System Knowledge Gap",
     "Root_Cause_Category": "User - Competency Gap",
-    "Issues": [
-      "Formal system training or onboarding refresher required",
-      "User lack of familiarity with specific planning functionalities",
-      "Process confusion regarding end-to-end system workflow",
-      "Incorrect system usage resulting from functional knowledge gaps",
-      "Business team requires documentation on module features"
-    ]
+    "Issue_Detail": "Incorrect system usage due to lack of familiarity with features",
+    "Business_Impact": "Poor tool adoption and high frequency of user-generated errors",
+    "Resolution_Path": "Enroll User in Platform Certification / Refresher Course",
+    "Complexity_Level": "Low"
   },
-  "User - Logic mistakes in excel vs system": {
+  {
+    "Category": "User - Logic mistakes in excel vs system",
     "Root_Cause_Category": "User - Data Integrity Error",
-    "Issues": [
-      "Variance between offline Excel calculations and system results",
-      "Shadow accounting errors due to incorrect spreadsheet formulas",
-      "Excel logic differs from validated system calculation engine",
-      "Data upload failure caused by spreadsheet formula errors",
-      "Reconciliation discrepancy between manual files and the system"
-    ]
+    "Issue_Detail": "Variance between offline Excel prep files and validated system results",
+    "Business_Impact": "Loss of trust in the 'Single Source of Truth' system data",
+    "Resolution_Path": "Reconcile Excel Formulas against System Logic",
+    "Complexity_Level": "Medium"
   },
-  "User - Multiple versions issue in excel": {
+  {
+    "Category": "User - Multiple versions issue in excel",
     "Root_Cause_Category": "User - Version Control Error",
-    "Issues": [
-      "User working on an outdated or deprecated spreadsheet version",
-      "Local version control conflict leading to data inconsistency",
-      "Submission of data from an incorrect or non-standard file",
-      "Multiple conflicting versions of manual templates in circulation",
-      "Confusion between draft and final versions of Excel inputs"
-    ]
+    "Issue_Detail": "User uploaded data from an outdated or deprecated spreadsheet",
+    "Business_Impact": "Overwriting of accurate data with stale/incorrect values",
+    "Resolution_Path": "Implement Version Locking / Mandatory Template Downloads",
+    "Complexity_Level": "Low"
   }
-}
+]
