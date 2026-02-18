@@ -1,0 +1,7 @@
+
+pandas
+sentence-transformers
+torch
+scikit-learn
+openpyxl
+matplotlib
