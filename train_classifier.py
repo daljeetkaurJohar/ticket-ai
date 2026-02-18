@@ -1,18 +1,21 @@
 import pandas as pd
-import torch
-
-from datasets import Dataset
-from sentence_transformers import SentenceTransformer, losses
-from sentence_transformers.trainer import SentenceTransformerTrainer
-from sentence_transformers.training_args import SentenceTransformerTrainingArguments
-
-from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator
-
-import numpy as np
 import os
+import json
+
+from sentence_transformers import SentenceTransformer, InputExample, losses
+from torch.utils.data import DataLoader
+
 
 # ==========================
-# Load your data
+# Create folders
+# ==========================
+
+os.makedirs("model/fine_tuned", exist_ok=True)
+os.makedirs("model", exist_ok=True)
+
+
+# ==========================
+# Load data
 # ==========================
 
 df = pd.read_excel("data/incoming_tickets.xlsx")
@@ -30,7 +33,7 @@ def build_text(row):
 
     parts = []
 
-    important_cols = [
+    cols = [
         "Ticket Summary",
         "Ticket Details",
         "Problem",
@@ -38,7 +41,7 @@ def build_text(row):
         "Assignment Group"
     ]
 
-    for col in important_cols:
+    for col in cols:
 
         if col in row and pd.notna(row[col]):
 
@@ -51,27 +54,35 @@ df["text"] = df.apply(build_text, axis=1)
 
 
 # ==========================
-# Convert categories to numeric labels
+# Create label map
 # ==========================
 
 categories = df["ISSUE CAT"].unique()
 
 label_map = {cat: i for i, cat in enumerate(categories)}
 
-df["label"] = df["ISSUE CAT"].map(label_map)
-
+reverse_map = {i: cat for cat, i in label_map.items()}
 
 # Save label map
-os.makedirs("model", exist_ok=True)
-
-pd.Series(label_map).to_json("model/label_map.json")
+with open("model/label_map.json", "w") as f:
+    json.dump(label_map, f, indent=2)
 
 
 # ==========================
-# Create dataset
+# Prepare training examples
 # ==========================
 
-dataset = Dataset.from_pandas(df[["text", "label"]])
+train_examples = []
+
+for _, row in df.iterrows():
+
+    text = row["text"]
+
+    label = row["ISSUE CAT"]
+
+    train_examples.append(
+        InputExample(texts=[text, label])
+    )
 
 
 # ==========================
@@ -84,53 +95,25 @@ model = SentenceTransformer(
 
 
 # ==========================
-# Training arguments
-# ==========================
-
-args = SentenceTransformerTrainingArguments(
-
-    output_dir="model/fine_tuned",
-
-    num_train_epochs=4,
-
-    per_device_train_batch_size=16,
-
-    learning_rate=2e-5,
-
-    warmup_ratio=0.1,
-
-    fp16=False
-)
-
-
-# ==========================
-# Loss function
-# ==========================
-
-loss = losses.BatchAllTripletLoss(model)
-
-
-# ==========================
-# Trainer
-# ==========================
-
-trainer = SentenceTransformerTrainer(
-
-    model=model,
-
-    args=args,
-
-    train_dataset=dataset,
-
-    loss=loss
-)
-
-
-# ==========================
 # Train
 # ==========================
 
-trainer.train()
+train_dataloader = DataLoader(
+    train_examples,
+    shuffle=True,
+    batch_size=16
+)
+
+train_loss = losses.CosineSimilarityLoss(model)
+
+
+print("Training started...")
+
+model.fit(
+    train_objectives=[(train_dataloader, train_loss)],
+    epochs=4,
+    warmup_steps=100
+)
 
 
 # ==========================
@@ -139,4 +122,5 @@ trainer.train()
 
 model.save("model/fine_tuned")
 
-print("Training complete. Model saved.")
+print("Model saved successfully!")
+print("Check folder: model/fine_tuned")
