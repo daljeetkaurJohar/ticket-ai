@@ -1,133 +1,122 @@
 {
-  "IT - System linkage issue": [
-    "Data is not flowing between source and target systems",
-    "Integration between modules is not working correctly",
-    "Values entered in upstream system are not reflecting downstream",
-    "System interface not syncing properly",
-    "Linkage between planning and reporting system broken",
-    "Data transfer between applications failed",
-    "Connection between Anaplan and upstream system not working",
-    "System not reflecting linked data correctly"
-  ],
-
-  "IT - System Access issue": [
-    "User unable to login into system",
-    "Access denied while opening planning module",
-    "User does not have permission to access workspace",
-    "Authorization missing for user role",
-    "Login credentials not working",
-    "User cannot access required functionality",
-    "Permission issue preventing access",
-    "User account not provisioned properly"
-  ],
-
-  "IT - System Version issue": [
-    "Incorrect version of system deployed",
-    "System showing outdated version",
-    "Latest version changes not available",
-    "Version mismatch between environments",
-    "Upgrade not reflected in production",
-    "Application running older version",
-    "System release not updated",
-    "Version conflict causing issues"
-  ],
-
-  "IT - Data entry handholding": [
-    "User needs assistance entering planning data",
-    "Support required to input values in system",
-    "User needs guidance on data entry process",
-    "Unable to understand how to input data",
-    "User requesting help with submission",
-    "Need assistance for manual data entry",
-    "Help required to update records",
-    "User unsure how to populate fields"
-  ],
-
-  "IT - Master Data/ mapping issue": [
-    "Cost center mapping missing in system",
-    "Master data not configured correctly",
-    "Mapping not available for new entity",
-    "Dimension mapping incorrect",
-    "System not recognizing mapped values",
-    "Master data not maintained properly",
-    "Entity hierarchy mapping incorrect",
-    "Mapping configuration issue in system"
-  ],
-
-  "User - Mapping missing": [
-    "User did not provide mapping information",
-    "Required mapping not shared by business",
-    "Mapping details missing from user input",
-    "User forgot to update mapping file",
-    "Business team has not provided mapping",
-    "Mapping data incomplete from user",
-    "Mapping not maintained by user",
-    "User has not created mapping structure"
-  ],
-
-  "User - Master data delayed input": [
-    "User submitted master data after deadline",
-    "Delay in providing required data",
-    "Business provided inputs late",
-    "Master data update delayed by user",
-    "User did not submit data on time",
-    "Delayed submission caused issue",
-    "Late master data entry by user",
-    "Required input received after cutoff"
-  ],
-
-  "User - Logic changes during ABP": [
-    "User changed business logic during planning cycle",
-    "Calculation logic modified by business team",
-    "Planning assumptions changed during ABP",
-    "User updated formulas impacting outputs",
-    "Business changed planning methodology",
-    "Logic updated after initial submission",
-    "User altered forecast logic",
-    "Changes in logic caused discrepancy"
-  ],
-
-  "User - Master data incorporation in system": [
-    "User requested adding new entity",
-    "Business asked to include additional master data",
-    "New dimension requested by user",
-    "User wants new hierarchy added",
-    "Master data addition required",
-    "User requested update in master data",
-    "Need to incorporate business changes",
-    "User requested system update"
-  ],
-
-  "User - System Knowledge Gap": [
-    "User does not understand how system works",
-    "User needs training on planning system",
-    "Incorrect usage due to lack of knowledge",
-    "User confused about process",
-    "Training required for business users",
-    "User unaware of system functionality",
-    "Business team lacks system knowledge",
-    "User requires system training"
-  ],
-
-  "User - Logic mistakes in excel vs system": [
-    "Excel calculations do not match system",
-    "Mismatch between spreadsheet and system values",
-    "User formula incorrect in excel",
-    "Planning data incorrect due to excel logic",
-    "Spreadsheet logic differs from system logic",
-    "Excel file contains incorrect calculations",
-    "Values differ between excel and system",
-    "Excel logic causing discrepancy"
-  ],
-
-  "User - Multiple versions issue in excel": [
-    "Multiple versions of excel file exist",
-    "User working on wrong version of spreadsheet",
-    "Version confusion between files",
-    "Duplicate excel files causing inconsistency",
-    "Different versions of data provided",
-    "User submitted outdated excel file",
-    "Conflicting excel versions received",
-    "Spreadsheet version mismatch"
-  ]
+  "IT - System linkage issue": {
+    "Root_Cause_Category": "Technical - Infrastructure",
+    "Issues": [
+      "API or Data hub sync failure between source and target",
+      "Upstream data latency causing synchronization delays",
+      "Broken interface linkage between planning and reporting modules",
+      "Anaplan Connect or automated data transfer failure",
+      "Real-time data flow disruption between integrated applications"
+    ]
+  },
+  "IT - System Access issue": {
+    "Root_Cause_Category": "Technical - Security/Identity",
+    "Issues": [
+      "SSO or Login authentication failure",
+      "Workspace or Model permission mismatch for user role",
+      "Role-based access control (RBAC) missing or unassigned",
+      "User account provisioning or deactivation error",
+      "Restricted functionality access within specific modules"
+    ]
+  },
+  "IT - System Version issue": {
+    "Root_Cause_Category": "Technical - Environment Management",
+    "Issues": [
+      "ALM (Application Lifecycle Management) mismatch between environments",
+      "Incorrect system version or build deployed to production",
+      "Discrepancy between Development, Test, and Production environments",
+      "Stale model version showing outdated architectural changes",
+      "Version conflict causing calculation or logic inconsistencies"
+    ]
+  },
+  "IT - Data entry handholding": {
+    "Root_Cause_Category": "User - Support Requirement",
+    "Issues": [
+      "Functional guidance required for first-time data entry",
+      "User navigation assistance needed for planning templates",
+      "Clarification required on mandatory field requirements",
+      "Support requested for manual submission workflow",
+      "Step-by-step walkthrough of the input process"
+    ]
+  },
+  "IT - Master Data/ mapping issue": {
+    "Root_Cause_Category": "Technical - Configuration",
+    "Issues": [
+      "Metadata or Hierarchy loading error within system tables",
+      "System-side mapping configuration corruption or missing entries",
+      "Technical dimension mapping error preventing data flow",
+      "Cost center or entity hierarchy setup failure in backend",
+      "Invalid system logic for auto-mapping new business entities"
+    ]
+  },
+  "User - Mapping missing": {
+    "Root_Cause_Category": "User - Input Omission",
+    "Issues": [
+      "Business mapping details not provided for new entities",
+      "Required mapping logic missing from user-managed files",
+      "User failed to update mapping structures post-reorganization",
+      "Incomplete mapping attributes provided by business owner",
+      "User-driven mapping file contains empty or invalid records"
+    ]
+  },
+  "User - Master data delayed input": {
+    "Root_Cause_Category": "Process - Compliance Failure",
+    "Issues": [
+      "Master data submission received after the processing cutoff",
+      "Delayed update of business-critical hierarchy inputs",
+      "User failed to provide required master data within the SLA",
+      "Late data inputs causing downstream reporting delays",
+      "Business inputs received post-cycle deadline"
+    ]
+  },
+  "User - Logic changes during ABP": {
+    "Root_Cause_Category": "Process - Scope Drift",
+    "Issues": [
+      "In-cycle calculation logic modifications requested by business",
+      "ABP methodology shift occurring during active planning window",
+      "Unannounced changes to business assumptions or drivers",
+      "Manual formula overrides impacting historical or forecast outputs",
+      "Logic updates requested after initial data submission"
+    ]
+  },
+  "User - Master data incorporation in system": {
+    "Root_Cause_Category": "Process - Change Request",
+    "Issues": [
+      "Business request for new entity or cost center addition",
+      "Request to modify existing hierarchy or dimension structure",
+      "User requirement for new data dimension or reporting tag",
+      "Ad-hoc request to incorporate structural business changes",
+      "Updates required to reflect organizational restructuring"
+    ]
+  },
+  "User - System Knowledge Gap": {
+    "Root_Cause_Category": "User - Competency Gap",
+    "Issues": [
+      "Formal system training or onboarding refresher required",
+      "User lack of familiarity with specific planning functionalities",
+      "Process confusion regarding end-to-end system workflow",
+      "Incorrect system usage resulting from functional knowledge gaps",
+      "Business team requires documentation on module features"
+    ]
+  },
+  "User - Logic mistakes in excel vs system": {
+    "Root_Cause_Category": "User - Data Integrity Error",
+    "Issues": [
+      "Variance between offline Excel calculations and system results",
+      "Shadow accounting errors due to incorrect spreadsheet formulas",
+      "Excel logic differs from validated system calculation engine",
+      "Data upload failure caused by spreadsheet formula errors",
+      "Reconciliation discrepancy between manual files and the system"
+    ]
+  },
+  "User - Multiple versions issue in excel": {
+    "Root_Cause_Category": "User - Version Control Error",
+    "Issues": [
+      "User working on an outdated or deprecated spreadsheet version",
+      "Local version control conflict leading to data inconsistency",
+      "Submission of data from an incorrect or non-standard file",
+      "Multiple conflicting versions of manual templates in circulation",
+      "Confusion between draft and final versions of Excel inputs"
+    ]
+  }
 }
