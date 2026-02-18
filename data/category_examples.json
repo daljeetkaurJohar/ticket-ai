@@ -1,18 +1,98 @@
 {
+  "IT - System linkage issue": [
+    "System not linking properly",
+    "Integration not working",
+    "Data not syncing between modules",
+    "Connection issue between systems",
+    "Interface not working"
+  ],
+
   "IT - System Access issue": [
     "User unable to login",
-    "Access denied to system",
-    "Permission issue for module"
+    "Access denied",
+    "Permission issue",
+    "User cannot access module",
+    "Authorization problem"
+  ],
+
+  "IT - System Version issue": [
+    "Version mismatch",
+    "System version incorrect",
+    "Upgrade issue",
+    "Release version problem",
+    "Old version still showing"
+  ],
+
+  "IT - Data entry handholding": [
+    "User needs help entering data",
+    "Support required for entry",
+    "Guidance needed",
+    "User unsure how to input data",
+    "Help required for data entry"
   ],
 
   "IT - Master Data/ mapping issue": [
-    "Mapping not correct",
-    "Master data missing",
-    "Mapping issue in system"
+    "Mapping missing",
+    "Master data incorrect",
+    "Mapping not done",
+    "Data mapping issue",
+    "Entity not mapped"
+  ],
+
+  "User - Mapping missing": [
+    "User did not provide mapping",
+    "Mapping missing from user",
+    "User forgot mapping",
+    "Mapping not provided",
+    "User mapping incomplete"
+  ],
+
+  "User - Master data delayed input": [
+    "User delayed data submission",
+    "Late master data input",
+    "Data provided late",
+    "Submission delayed",
+    "User delay caused issue"
+  ],
+
+  "User - Logic changes during ABP": [
+    "User changed logic",
+    "Business logic modified",
+    "Planning logic updated",
+    "Logic changed during planning",
+    "User modified calculations"
+  ],
+
+  "User - Master data incorporation in system": [
+    "User requested data addition",
+    "Need to add master data",
+    "Incorporate new data",
+    "User requested update",
+    "Data needs to be added"
+  ],
+
+  "User - System Knowledge Gap": [
+    "User does not understand system",
+    "Training required",
+    "User confusion",
+    "Knowledge gap",
+    "User unsure how system works"
   ],
 
   "User - Logic mistakes in excel vs system": [
-    "Excel values not matching system",
-    "Mismatch between excel and system"
+    "Excel mismatch",
+    "Calculation incorrect in excel",
+    "Excel vs system difference",
+    "Spreadsheet incorrect",
+    "Formula error"
+  ],
+
+  "User - Multiple versions issue in excel": [
+    "Multiple excel versions",
+    "Different spreadsheet versions",
+    "Version confusion",
+    "Duplicate excel files",
+    "Wrong excel version used"
   ]
 }
+
