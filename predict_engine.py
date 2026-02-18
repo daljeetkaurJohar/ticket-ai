@@ -1,13 +1,12 @@
 import pandas as pd
 import numpy as np
-import os
 
 from sentence_transformers import SentenceTransformer, util
 
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-
 CONFIDENCE_THRESHOLD = 0.55
+MAX_PER_CATEGORY = 50
 
 
 class EnterpriseHybridClassifier:
@@ -25,7 +24,7 @@ class EnterpriseHybridClassifier:
         df = df.dropna(subset=["ISSUE CAT"])
 
 
-        # Build strong semantic context
+        # Build semantic context
         def build_context(row):
 
             priority_cols = [
@@ -51,11 +50,17 @@ class EnterpriseHybridClassifier:
         df["context"] = df.apply(build_context, axis=1)
 
 
-        # Create centroids
+        # Balanced centroid creation (FIXED)
         self.categories = []
         centroid_list = []
 
         for category, group in df.groupby("ISSUE CAT"):
+
+            # Balance dataset
+            group = group.sample(
+                min(len(group), MAX_PER_CATEGORY),
+                random_state=42
+            )
 
             texts = group["context"].tolist()
 
@@ -69,6 +74,7 @@ class EnterpriseHybridClassifier:
 
             centroid_list.append(centroid)
             self.categories.append(category)
+
 
         self.centroids = np.vstack(centroid_list)
 
@@ -107,28 +113,23 @@ class EnterpriseHybridClassifier:
             scores = util.cos_sim(
                 emb,
                 self.centroids
-            )[0]
+            )[0].cpu().numpy()
 
-            scores_np = scores.cpu().numpy()
+            best_idx = np.argmax(scores)
+            best_score = scores[best_idx]
 
-            best_idx = np.argmax(scores_np)
-            best_score = scores_np[best_idx]
-
-            # Secondary match
-            sorted_idx = np.argsort(scores_np)[::-1]
+            sorted_idx = np.argsort(scores)[::-1]
 
             second_idx = sorted_idx[1]
-            second_score = scores_np[second_idx]
+            second_score = scores[second_idx]
 
 
-            # Hybrid decision logic
             if best_score < CONFIDENCE_THRESHOLD:
 
                 category = "Uncertain"
 
             elif best_score - second_score < 0.05:
 
-                # choose safer category
                 category = self.categories[second_idx]
 
             else:
@@ -154,7 +155,6 @@ def classify_file(input_file, output_file):
     pred, conf = clf.predict_batch(df)
 
     df["Predicted Category"] = pred
-
     df["Confidence"] = conf
 
     df.to_excel(output_file, index=False)
