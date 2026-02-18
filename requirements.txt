@@ -7,4 +7,7 @@ openpyxl
 matplotlib
 xlsxwriter
 plotly
+datasets
+scikit-learn
+
 
