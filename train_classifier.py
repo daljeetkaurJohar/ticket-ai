@@ -11,7 +11,6 @@ from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator
 import numpy as np
 import os
 
-
 # ==========================
 # Load your data
 # ==========================
