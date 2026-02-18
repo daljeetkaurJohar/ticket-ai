@@ -1,162 +1,85 @@
-from predict_engine import classify_file
-import os
+import streamlit as st
 import pandas as pd
+import io
 
-INPUT = "data/incoming_tickets.xlsx"
-OUTPUT = "output/classified_tickets.xlsx"
+from predict_engine import classify_file
 
+st.title("Enterprise Ticket Intelligence System")
 
-def generate_full_report(df, output_file):
+uploaded_file = st.file_uploader(
+    "Upload Excel File",
+    type=["xlsx"]
+)
 
-    # CRITICAL FIX: remove hidden spaces from column names
+if uploaded_file is not None:
+
+    df = pd.read_excel(uploaded_file)
+
     df.columns = df.columns.str.strip()
 
-    with pd.ExcelWriter(output_file, engine="xlsxwriter") as writer:
+    st.subheader("Preview")
+    st.dataframe(df)
 
-        workbook = writer.book
+    if st.button("Classify Tickets"):
 
-        # =============================
-        # Sheet 1: Detailed Data
-        # =============================
+        with st.spinner("Classifying..."):
 
-        df.to_excel(writer, sheet_name="Detailed Data", index=False)
+            # Save temp file
+            input_path = "temp_input.xlsx"
+            output_path = "temp_output.xlsx"
 
-        worksheet = writer.sheets["Detailed Data"]
+            df.to_excel(input_path, index=False)
 
-        for i, col in enumerate(df.columns):
-            worksheet.set_column(i, i, 25)
+            classify_file(input_path, output_path)
 
+            result_df = pd.read_excel(output_path)
 
-        # =============================
-        # Sheet 2: Summary
-        # =============================
+        st.success("Classification Complete")
 
-        summary = df["Predicted Category"].value_counts().reset_index()
-        summary.columns = ["Category", "Count"]
+        st.subheader("Results")
+        st.dataframe(result_df)
 
-        summary.to_excel(writer, sheet_name="Summary", index=False)
+        # Summary chart
+        st.subheader("Category Distribution")
 
+        counts = result_df["Predicted Category"].value_counts()
 
-        # =============================
-        # Sheet 3: Pivot Assignment Group
-        # =============================
+        st.bar_chart(counts)
 
-        if "Assignment Group" in df.columns:
+        # Excel download with pivots
+        def generate_excel(df):
 
-            pivot1 = pd.pivot_table(
-                df,
-                index="Assignment Group",
-                columns="Predicted Category",
-                aggfunc="size",
-                fill_value=0
-            )
+            output = io.BytesIO()
 
-            pivot1.to_excel(writer, sheet_name="Pivot_Assignment_Group")
+            with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
 
+                df.to_excel(writer, sheet_name="Detailed Data", index=False)
 
-        # =============================
-        # Sheet 4: Pivot Assigned To
-        # =============================
+                summary = df["Predicted Category"].value_counts()
 
-        if "Assigned To" in df.columns:
+                summary.to_excel(writer, sheet_name="Summary")
 
-            pivot2 = pd.pivot_table(
-                df,
-                index="Assigned To",
-                columns="Predicted Category",
-                aggfunc="size",
-                fill_value=0
-            )
+                if "Assignment Group" in df.columns:
 
-            pivot2.to_excel(writer, sheet_name="Pivot_Assigned_To")
+                    pivot = pd.pivot_table(
+                        df,
+                        index="Assignment Group",
+                        columns="Predicted Category",
+                        aggfunc="size",
+                        fill_value=0
+                    )
 
+                    pivot.to_excel(writer, sheet_name="Pivot_Assignment_Group")
 
-        # =============================
-        # Sheet 5: Pivot Team
-        # =============================
+            output.seek(0)
 
-        if "Team" in df.columns:
+            return output
 
-            pivot3 = pd.pivot_table(
-                df,
-                index="Team",
-                columns="Predicted Category",
-                aggfunc="size",
-                fill_value=0
-            )
+        excel_file = generate_excel(result_df)
 
-            pivot3.to_excel(writer, sheet_name="Pivot_Team")
-
-
-        # =============================
-        # Sheet 6: Trend Pivot
-        # =============================
-
-        if "Reported On" in df.columns:
-
-            df["Date"] = pd.to_datetime(df["Reported On"], errors="coerce").dt.date
-
-            pivot_trend = pd.pivot_table(
-                df,
-                index="Date",
-                columns="Predicted Category",
-                aggfunc="size",
-                fill_value=0
-            )
-
-            pivot_trend.to_excel(writer, sheet_name="Pivot_Trend")
-
-
-        # =============================
-        # Sheet 7: Charts
-        # =============================
-
-        chart_sheet = workbook.add_worksheet("Charts")
-
-        chart = workbook.add_chart({"type": "column"})
-
-        chart.add_series({
-            "name": "Category Distribution",
-            "categories": ["Summary", 1, 0, len(summary), 0],
-            "values": ["Summary", 1, 1, len(summary), 1],
-        })
-
-        chart.set_title({"name": "Ticket Category Distribution"})
-        chart_sheet.insert_chart("B2", chart)
-
-
-        pie_chart = workbook.add_chart({"type": "pie"})
-
-        pie_chart.add_series({
-            "categories": ["Summary", 1, 0, len(summary), 0],
-            "values": ["Summary", 1, 1, len(summary), 1],
-        })
-
-        pie_chart.set_title({"name": "Category Share"})
-        chart_sheet.insert_chart("B20", pie_chart)
-
-
-
-if __name__ == "__main__":
-
-    if not os.path.exists(INPUT):
-
-        print("Input file not found:", INPUT)
-
-    else:
-
-        print("Running classification...")
-
-        classify_file(INPUT, OUTPUT)
-
-        print("Classification complete.")
-
-        df = pd.read_excel(OUTPUT)
-
-        # CRITICAL FIX HERE ALSO
-        df.columns = df.columns.str.strip()
-
-        generate_full_report(df, OUTPUT)
-
-        print("Enterprise report generated successfully.")
-        print("Output file:", OUTPUT)
+        st.download_button(
+            "Download Excel Report",
+            excel_file,
+            file_name="classified_tickets.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
