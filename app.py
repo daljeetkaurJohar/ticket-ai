@@ -8,7 +8,7 @@ OUTPUT = "output/classified_tickets.xlsx"
 
 def generate_full_report(df, output_file):
 
-    # CRITICAL FIX: remove hidden spaces in column names
+    # Fix hidden spaces in column names
     df.columns = df.columns.str.strip()
 
     with pd.ExcelWriter(output_file, engine="xlsxwriter") as writer:
@@ -21,11 +21,10 @@ def generate_full_report(df, output_file):
 
         df.to_excel(writer, sheet_name="Detailed Data", index=False)
 
-        worksheet = writer.sheets["Detailed Data"]
+        detail_sheet = writer.sheets["Detailed Data"]
 
-        # Auto adjust column width
         for i, col in enumerate(df.columns):
-            worksheet.set_column(i, i, 25)
+            detail_sheet.set_column(i, i, 25)
 
 
         # =============================
@@ -37,6 +36,10 @@ def generate_full_report(df, output_file):
         summary.columns = ["Category", "Count"]
 
         summary.to_excel(writer, sheet_name="Summary", index=False)
+
+        summary_sheet = writer.sheets["Summary"]
+
+        summary_sheet.set_column(0, 1, 35)
 
 
         # =============================
@@ -53,7 +56,20 @@ def generate_full_report(df, output_file):
                 fill_value=0
             )
 
-            pivot1.to_excel(writer, sheet_name="Pivot_Assignment_Group")
+            pivot1["Total"] = pivot1.sum(axis=1)
+
+            pivot1 = pivot1.reset_index()
+
+            pivot1.to_excel(
+                writer,
+                sheet_name="Pivot_Assignment_Group",
+                index=False
+            )
+
+            pivot_sheet = writer.sheets["Pivot_Assignment_Group"]
+
+            for i, col in enumerate(pivot1.columns):
+                pivot_sheet.set_column(i, i, 30)
 
 
         # =============================
@@ -70,7 +86,15 @@ def generate_full_report(df, output_file):
                 fill_value=0
             )
 
-            pivot2.to_excel(writer, sheet_name="Pivot_Assigned_To")
+            pivot2["Total"] = pivot2.sum(axis=1)
+
+            pivot2 = pivot2.reset_index()
+
+            pivot2.to_excel(
+                writer,
+                sheet_name="Pivot_Assigned_To",
+                index=False
+            )
 
 
         # =============================
@@ -87,16 +111,27 @@ def generate_full_report(df, output_file):
                 fill_value=0
             )
 
-            pivot3.to_excel(writer, sheet_name="Pivot_Team")
+            pivot3["Total"] = pivot3.sum(axis=1)
+
+            pivot3 = pivot3.reset_index()
+
+            pivot3.to_excel(
+                writer,
+                sheet_name="Pivot_Team",
+                index=False
+            )
 
 
         # =============================
-        # Sheet 6: Trend Pivot
+        # Sheet 6: Pivot Trend
         # =============================
 
         if "Reported On" in df.columns:
 
-            df["Date"] = pd.to_datetime(df["Reported On"], errors="coerce").dt.date
+            df["Date"] = pd.to_datetime(
+                df["Reported On"],
+                errors="coerce"
+            ).dt.date
 
             pivot_trend = pd.pivot_table(
                 df,
@@ -106,7 +141,13 @@ def generate_full_report(df, output_file):
                 fill_value=0
             )
 
-            pivot_trend.to_excel(writer, sheet_name="Pivot_Trend")
+            pivot_trend = pivot_trend.reset_index()
+
+            pivot_trend.to_excel(
+                writer,
+                sheet_name="Pivot_Trend",
+                index=False
+            )
 
 
         # =============================
@@ -115,33 +156,55 @@ def generate_full_report(df, output_file):
 
         chart_sheet = workbook.add_worksheet("Charts")
 
-        chart = workbook.add_chart({"type": "column"})
+        num_rows = len(summary)
 
-        chart.add_series({
-            "name": "Category Distribution",
-            "categories": ["Summary", 1, 0, len(summary), 0],
-            "values": ["Summary", 1, 1, len(summary), 1],
+
+        # Column Chart
+        column_chart = workbook.add_chart({"type": "column"})
+
+        column_chart.add_series({
+            "name": "Ticket Category Distribution",
+            "categories": ["Summary", 1, 0, num_rows, 0],
+            "values": ["Summary", 1, 1, num_rows, 1],
+            "data_labels": {"value": True},
         })
 
-        chart.set_title({"name": "Ticket Category Distribution"})
-        chart.set_x_axis({"name": "Category"})
-        chart.set_y_axis({"name": "Count"})
+        column_chart.set_title({
+            "name": "Ticket Category Distribution"
+        })
 
-        chart_sheet.insert_chart("B2", chart)
+        column_chart.set_x_axis({"name": "Category"})
+        column_chart.set_y_axis({"name": "Ticket Count"})
+
+        chart_sheet.insert_chart(
+            "B2",
+            column_chart,
+            {"x_scale": 2, "y_scale": 2}
+        )
 
 
+        # Pie Chart
         pie_chart = workbook.add_chart({"type": "pie"})
 
         pie_chart.add_series({
-            "categories": ["Summary", 1, 0, len(summary), 0],
-            "values": ["Summary", 1, 1, len(summary), 1],
+            "name": "Category Share",
+            "categories": ["Summary", 1, 0, num_rows, 0],
+            "values": ["Summary", 1, 1, num_rows, 1],
+            "data_labels": {"percentage": True},
         })
 
         pie_chart.set_title({"name": "Category Share"})
 
-        chart_sheet.insert_chart("B20", pie_chart)
+        chart_sheet.insert_chart(
+            "B25",
+            pie_chart,
+            {"x_scale": 2, "y_scale": 2}
+        )
 
 
+# =============================
+# Main Execution
+# =============================
 
 if __name__ == "__main__":
 
@@ -153,20 +216,14 @@ if __name__ == "__main__":
 
     else:
 
-        # Step 1: Run classification
         classify_file(INPUT, OUTPUT)
 
         print("Classification completed.")
 
-
-        # Step 2: Load classified file
         df = pd.read_excel(OUTPUT)
 
-        # CRITICAL FIX
         df.columns = df.columns.str.strip()
 
-
-        # Step 3: Generate full enterprise report
         generate_full_report(df, OUTPUT)
 
         print("Enterprise report generated successfully.")
