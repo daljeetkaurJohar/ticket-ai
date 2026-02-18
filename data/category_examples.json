@@ -1,98 +1,133 @@
 {
   "IT - System linkage issue": [
-    "System not linking properly",
-    "Integration not working",
-    "Data not syncing between modules",
-    "Connection issue between systems",
-    "Interface not working"
+    "Data is not flowing between source and target systems",
+    "Integration between modules is not working correctly",
+    "Values entered in upstream system are not reflecting downstream",
+    "System interface not syncing properly",
+    "Linkage between planning and reporting system broken",
+    "Data transfer between applications failed",
+    "Connection between Anaplan and upstream system not working",
+    "System not reflecting linked data correctly"
   ],
 
   "IT - System Access issue": [
-    "User unable to login",
-    "Access denied",
-    "Permission issue",
-    "User cannot access module",
-    "Authorization problem"
+    "User unable to login into system",
+    "Access denied while opening planning module",
+    "User does not have permission to access workspace",
+    "Authorization missing for user role",
+    "Login credentials not working",
+    "User cannot access required functionality",
+    "Permission issue preventing access",
+    "User account not provisioned properly"
   ],
 
   "IT - System Version issue": [
-    "Version mismatch",
-    "System version incorrect",
-    "Upgrade issue",
-    "Release version problem",
-    "Old version still showing"
+    "Incorrect version of system deployed",
+    "System showing outdated version",
+    "Latest version changes not available",
+    "Version mismatch between environments",
+    "Upgrade not reflected in production",
+    "Application running older version",
+    "System release not updated",
+    "Version conflict causing issues"
   ],
 
   "IT - Data entry handholding": [
-    "User needs help entering data",
-    "Support required for entry",
-    "Guidance needed",
-    "User unsure how to input data",
-    "Help required for data entry"
+    "User needs assistance entering planning data",
+    "Support required to input values in system",
+    "User needs guidance on data entry process",
+    "Unable to understand how to input data",
+    "User requesting help with submission",
+    "Need assistance for manual data entry",
+    "Help required to update records",
+    "User unsure how to populate fields"
   ],
 
   "IT - Master Data/ mapping issue": [
-    "Mapping missing",
-    "Master data incorrect",
-    "Mapping not done",
-    "Data mapping issue",
-    "Entity not mapped"
+    "Cost center mapping missing in system",
+    "Master data not configured correctly",
+    "Mapping not available for new entity",
+    "Dimension mapping incorrect",
+    "System not recognizing mapped values",
+    "Master data not maintained properly",
+    "Entity hierarchy mapping incorrect",
+    "Mapping configuration issue in system"
   ],
 
   "User - Mapping missing": [
-    "User did not provide mapping",
-    "Mapping missing from user",
-    "User forgot mapping",
-    "Mapping not provided",
-    "User mapping incomplete"
+    "User did not provide mapping information",
+    "Required mapping not shared by business",
+    "Mapping details missing from user input",
+    "User forgot to update mapping file",
+    "Business team has not provided mapping",
+    "Mapping data incomplete from user",
+    "Mapping not maintained by user",
+    "User has not created mapping structure"
   ],
 
   "User - Master data delayed input": [
-    "User delayed data submission",
-    "Late master data input",
-    "Data provided late",
-    "Submission delayed",
-    "User delay caused issue"
+    "User submitted master data after deadline",
+    "Delay in providing required data",
+    "Business provided inputs late",
+    "Master data update delayed by user",
+    "User did not submit data on time",
+    "Delayed submission caused issue",
+    "Late master data entry by user",
+    "Required input received after cutoff"
   ],
 
   "User - Logic changes during ABP": [
-    "User changed logic",
-    "Business logic modified",
-    "Planning logic updated",
-    "Logic changed during planning",
-    "User modified calculations"
+    "User changed business logic during planning cycle",
+    "Calculation logic modified by business team",
+    "Planning assumptions changed during ABP",
+    "User updated formulas impacting outputs",
+    "Business changed planning methodology",
+    "Logic updated after initial submission",
+    "User altered forecast logic",
+    "Changes in logic caused discrepancy"
   ],
 
   "User - Master data incorporation in system": [
-    "User requested data addition",
-    "Need to add master data",
-    "Incorporate new data",
-    "User requested update",
-    "Data needs to be added"
+    "User requested adding new entity",
+    "Business asked to include additional master data",
+    "New dimension requested by user",
+    "User wants new hierarchy added",
+    "Master data addition required",
+    "User requested update in master data",
+    "Need to incorporate business changes",
+    "User requested system update"
   ],
 
   "User - System Knowledge Gap": [
-    "User does not understand system",
-    "Training required",
-    "User confusion",
-    "Knowledge gap",
-    "User unsure how system works"
+    "User does not understand how system works",
+    "User needs training on planning system",
+    "Incorrect usage due to lack of knowledge",
+    "User confused about process",
+    "Training required for business users",
+    "User unaware of system functionality",
+    "Business team lacks system knowledge",
+    "User requires system training"
   ],
 
   "User - Logic mistakes in excel vs system": [
-    "Excel mismatch",
-    "Calculation incorrect in excel",
-    "Excel vs system difference",
-    "Spreadsheet incorrect",
-    "Formula error"
+    "Excel calculations do not match system",
+    "Mismatch between spreadsheet and system values",
+    "User formula incorrect in excel",
+    "Planning data incorrect due to excel logic",
+    "Spreadsheet logic differs from system logic",
+    "Excel file contains incorrect calculations",
+    "Values differ between excel and system",
+    "Excel logic causing discrepancy"
   ],
 
   "User - Multiple versions issue in excel": [
-    "Multiple excel versions",
-    "Different spreadsheet versions",
-    "Version confusion",
-    "Duplicate excel files",
-    "Wrong excel version used"
+    "Multiple versions of excel file exist",
+    "User working on wrong version of spreadsheet",
+    "Version confusion between files",
+    "Duplicate excel files causing inconsistency",
+    "Different versions of data provided",
+    "User submitted outdated excel file",
+    "Conflicting excel versions received",
+    "Spreadsheet version mismatch"
   ]
 }
-
