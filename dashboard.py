@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import io
+import os
 
 from predict_engine import classify_file
-
 
 st.set_page_config(
     page_title="Enterprise Ticket Intelligence",
@@ -18,85 +18,101 @@ uploaded_file = st.file_uploader(
     type=["xlsx"]
 )
 
-if uploaded_file:
+if uploaded_file is not None:
 
-    df = pd.read_excel(uploaded_file)
+    try:
 
-    df.columns = df.columns.str.strip()
+        df = pd.read_excel(uploaded_file)
 
-    st.subheader("Preview")
+        df.columns = df.columns.str.strip()
 
-    st.dataframe(df, use_container_width=True)
+        st.subheader("Preview")
+        st.dataframe(df, use_container_width=True)
 
-    if st.button("Run Classification"):
+        if st.button("Run Classification"):
 
-        df.to_excel("temp_input.xlsx", index=False)
+            st.info("Starting classification...")
 
-        classify_file("temp_input.xlsx", "temp_output.xlsx")
+            # Save temporary input file
+            input_path = "temp_input.xlsx"
+            output_path = "temp_output.xlsx"
 
-        result_df = pd.read_excel("temp_output.xlsx")
+            df.to_excel(input_path, index=False)
 
-        st.success("Classification Complete")
+            # Check if examples file exists
+            if not os.path.exists("data/category_examples.json"):
 
+                st.error(
+                    "category_examples.json not found in data folder."
+                )
 
-        # KPI
-        col1, col2, col3 = st.columns(3)
+                st.stop()
 
-        col1.metric("Total Tickets", len(result_df))
+            # Run classifier
+            classify_file(input_path, output_path)
 
-        col2.metric(
-            "IT Issues",
-            result_df["Predicted Category"].str.contains("IT").sum()
-        )
+            # Load result
+            result_df = pd.read_excel(output_path)
 
-        col3.metric(
-            "User Issues",
-            result_df["Predicted Category"].str.contains("User").sum()
-        )
+            st.success("Classification completed successfully.")
 
+            # KPI
+            col1, col2, col3 = st.columns(3)
 
-        # Bar Chart
-        counts = result_df["Predicted Category"].value_counts()
+            col1.metric("Total Tickets", len(result_df))
 
-        fig = px.bar(
-            x=counts.index,
-            y=counts.values,
-            color=counts.index,
-            title="Category Distribution"
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
-
-        # Pie Chart
-        pie = px.pie(
-            names=counts.index,
-            values=counts.values,
-            title="Category Share"
-        )
-
-        st.plotly_chart(pie, use_container_width=True)
-
-
-        # Download Excel
-        output = io.BytesIO()
-
-        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-
-            result_df.to_excel(
-                writer,
-                sheet_name="Detailed Data",
-                index=False
+            col2.metric(
+                "IT Issues",
+                result_df["Predicted Category"].str.contains("IT").sum()
             )
 
-        output.seek(0)
+            col3.metric(
+                "User Issues",
+                result_df["Predicted Category"].str.contains("User").sum()
+            )
 
-        st.download_button(
-            "Download Excel Report",
-            output,
-            file_name="classified_tickets.xlsx"
-        )
+            # Bar chart
+            counts = result_df["Predicted Category"].value_counts()
 
-        st.subheader("Results")
+            fig = px.bar(
+                x=counts.index,
+                y=counts.values,
+                color=counts.index,
+                title="Category Distribution"
+            )
 
-        st.dataframe(result_df, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Pie chart
+            pie = px.pie(
+                names=counts.index,
+                values=counts.values
+            )
+
+            st.plotly_chart(pie, use_container_width=True)
+
+            # Download Excel
+            output = io.BytesIO()
+
+            with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+
+                result_df.to_excel(
+                    writer,
+                    sheet_name="Detailed Data",
+                    index=False
+                )
+
+            output.seek(0)
+
+            st.download_button(
+                "Download Excel Report",
+                output,
+                file_name="classified_tickets.xlsx"
+            )
+
+            st.subheader("Results")
+            st.dataframe(result_df, use_container_width=True)
+
+    except Exception as e:
+
+        st.error(f"Error: {str(e)}")
