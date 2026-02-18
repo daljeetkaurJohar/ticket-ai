@@ -1,104 +1,54 @@
 import pandas as pd
 import numpy as np
+import json
 import os
 
 from sentence_transformers import SentenceTransformer, util
 
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-
-TRAIN_FILE = "data/training_data.xlsx"
-
-DATA_FOLDER = "data"
-
-CONFIDENCE_THRESHOLD = 0.55
-
-MAX_PER_CATEGORY = 50
+JSON_FILE = "data/category_examples.json"
 
 
-class EnterpriseHybridClassifier:
+class JSONClassifier:
 
     def __init__(self):
 
-        print("Initializing Enterprise Classifier...")
+        print("Loading classifier from JSON examples...")
 
-        self.ensure_training_file()
+        if not os.path.exists(JSON_FILE):
 
-        if not os.path.exists(TRAIN_FILE):
-
-            raise Exception(
-                "No training file found. Please place one Excel file with ISSUE CAT column inside data folder."
-            )
+            raise Exception("category_examples.json not found in data folder")
 
         self.model = SentenceTransformer(MODEL_NAME)
 
-        df = pd.read_excel(TRAIN_FILE)
+        with open(JSON_FILE, "r", encoding="utf-8") as f:
 
-        df.columns = df.columns.str.strip()
+            self.examples = json.load(f)
 
-        df = df.dropna(subset=["ISSUE CAT"])
-
-        df["context"] = df.apply(self.build_context, axis=1)
 
         self.categories = []
-
         centroid_list = []
 
-        # Balanced centroid creation
-        for category, group in df.groupby("ISSUE CAT"):
 
-            group = group.sample(
-                min(len(group), MAX_PER_CATEGORY),
-                random_state=42
-            )
+        # Create centroid per category from JSON examples
+        for category, texts in self.examples.items():
 
             embeddings = self.model.encode(
-                group["context"].tolist(),
-                batch_size=32,
+                texts,
+                batch_size=16,
                 show_progress_bar=False
             )
 
             centroid = np.mean(embeddings, axis=0)
 
             centroid_list.append(centroid)
-
             self.categories.append(category)
+
 
         self.centroids = np.vstack(centroid_list)
 
-        print("Classifier ready.")
-
-
-    # Automatically create training_data.xlsx if missing
-    def ensure_training_file(self):
-
-        if os.path.exists(TRAIN_FILE):
-
-            print("training_data.xlsx already exists.")
-
-            return
-
-        print("Searching for labeled training file...")
-
-        for file in os.listdir(DATA_FOLDER):
-
-            if file.endswith(".xlsx"):
-
-                path = os.path.join(DATA_FOLDER, file)
-
-                df = pd.read_excel(path)
-
-                df.columns = df.columns.str.strip()
-
-                if "ISSUE CAT" in df.columns:
-
-                    df.to_excel(TRAIN_FILE, index=False)
-
-                    print(f"training_data.xlsx created from {file}")
-
-                    return
-
-        print("No labeled file found in data folder.")
+        print("JSON classifier ready.")
 
 
     def build_context(self, row):
@@ -125,16 +75,15 @@ class EnterpriseHybridClassifier:
 
     def predict_batch(self, df):
 
-        df["context"] = df.apply(self.build_context, axis=1)
+        contexts = df.apply(self.build_context, axis=1).tolist()
 
         embeddings = self.model.encode(
-            df["context"].tolist(),
+            contexts,
             batch_size=32,
             show_progress_bar=False
         )
 
         predicted = []
-
         confidence = []
 
         for emb in embeddings:
@@ -144,41 +93,17 @@ class EnterpriseHybridClassifier:
                 self.centroids
             )[0].cpu().numpy()
 
-            best_idx = np.argmax(scores)
+            idx = np.argmax(scores)
 
-            best_score = scores[best_idx]
-
-            sorted_idx = np.argsort(scores)[::-1]
-
-            second_idx = sorted_idx[1]
-
-            second_score = scores[second_idx]
-
-
-            # Hybrid logic
-            if best_score < CONFIDENCE_THRESHOLD:
-
-                category = "Uncertain"
-
-            elif best_score - second_score < 0.05:
-
-                category = self.categories[second_idx]
-
-            else:
-
-                category = self.categories[best_idx]
-
-
-            predicted.append(category)
-
-            confidence.append(float(best_score))
+            predicted.append(self.categories[idx])
+            confidence.append(float(scores[idx]))
 
         return predicted, confidence
 
 
 def classify_file(input_file, output_file):
 
-    clf = EnterpriseHybridClassifier()
+    clf = JSONClassifier()
 
     df = pd.read_excel(input_file)
 
@@ -187,7 +112,6 @@ def classify_file(input_file, output_file):
     pred, conf = clf.predict_batch(df)
 
     df["Predicted Category"] = pred
-
     df["Confidence"] = conf
 
     df.to_excel(output_file, index=False)
