@@ -1,136 +1,113 @@
 import pandas as pd
-import os
 import json
-import torch
+import os
 
 from sentence_transformers import SentenceTransformer, util
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 
-# ============================
-# Fix encoding function
-# ============================
+# ================================
+# Fix encoding issues
+# ================================
 
 def clean_text(text):
+
     if isinstance(text, str):
+
         text = text.replace("â€“", "-")
         text = text.replace("â€”", "-")
         text = text.replace("â€˜", "'")
         text = text.replace("â€™", "'")
         text = text.replace("â€œ", '"')
         text = text.replace("â€", '"')
+
     return text
 
 
-# ============================
-# Categories
-# ============================
+# ================================
+# Semantic Prototype Classifier
+# ================================
 
-CATEGORIES = [
-    "IT - System linkage issue",
-    "IT - System Access issue",
-    "IT - System Version issue",
-    "IT - Data entry handholding",
-    "IT - Master Data/ mapping issue",
-    "User - Mapping missing",
-    "User - Master data delayed input",
-    "User - Logic changes during ABP",
-    "User - Master data incorporation in system",
-    "User - System Knowledge Gap",
-    "User - Logic mistakes in excel vs system",
-    "User - Multiple versions issue in excel"
-]
-
-
-# ============================
-# Fine-tuned classifier
-# ============================
-
-class FineTunedClassifier:
+class SemanticPrototypeClassifier:
 
     def __init__(self):
 
-        self.model = AutoModelForSequenceClassification.from_pretrained("model")
-
-        self.tokenizer = AutoTokenizer.from_pretrained("model")
-
-        with open("model/label_map.json") as f:
-            self.label_map = json.load(f)
-
-        self.reverse_map = {v: k for k, v in self.label_map.items()}
-
-
-    def predict(self, row):
-
-        text = " | ".join([f"{col}: {row[col]}" for col in row.index])
-
-        inputs = self.tokenizer(
-            text,
-            return_tensors="pt",
-            truncation=True,
-            padding=True
-        )
-
-        outputs = self.model(**inputs)
-
-        pred = torch.argmax(outputs.logits, dim=1).item()
-
-        confidence = torch.softmax(outputs.logits, dim=1).max().item()
-
-        return self.reverse_map[pred], confidence
-
-
-# ============================
-# Semantic fallback classifier
-# ============================
-
-class OfflineClassifier:
-
-    def __init__(self):
+        print("Loading semantic prototype classifier...")
 
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
 
-        self.cat_embeddings = self.model.encode(CATEGORIES)
+        examples_path = "data/category_examples.json"
+
+        if not os.path.exists(examples_path):
+
+            raise Exception(
+                "category_examples.json not found. Run generate_examples.py first."
+            )
+
+        with open(examples_path, "r", encoding="utf-8") as f:
+
+            self.examples = json.load(f)
+
+        self.example_embeddings = {}
+
+        for category, texts in self.examples.items():
+
+            if texts:
+
+                self.example_embeddings[category] = self.model.encode(texts)
+
+        print("Classifier ready.")
+
+
+    def build_context(self, row):
+
+        parts = []
+
+        for col in row.index:
+
+            value = row[col]
+
+            if pd.notna(value):
+
+                parts.append(f"{col}: {value}")
+
+        return " | ".join(parts)
 
 
     def predict(self, row):
 
-        text = " | ".join([f"{col}: {row[col]}" for col in row.index])
+        text = self.build_context(row)
 
-        emb = self.model.encode(text)
+        ticket_embedding = self.model.encode(text)
 
-        scores = util.cos_sim(emb, self.cat_embeddings)
+        best_category = None
 
-        idx = scores.argmax()
+        best_score = -1
 
-        confidence = float(scores.max())
+        for category, embeddings in self.example_embeddings.items():
 
-        return CATEGORIES[idx], confidence
+            scores = util.cos_sim(ticket_embedding, embeddings)
+
+            score = float(scores.max())
+
+            if score > best_score:
+
+                best_score = score
+
+                best_category = category
+
+        return best_category, best_score
 
 
-# ============================
+# ================================
 # Main classification function
-# ============================
+# ================================
 
 def classify_file(input_file, output_file):
 
-    # Select classifier automatically
-    if os.path.exists("model") and os.path.exists("model/label_map.json"):
-
-        print("Using Fine-Tuned Model")
-
-        clf = FineTunedClassifier()
-
-    else:
-
-        print("Using Semantic Similarity Model")
-
-        clf = OfflineClassifier()
-
+    clf = SemanticPrototypeClassifier()
 
     df = pd.read_excel(input_file)
 
-    # Fix column names
     df.columns = df.columns.str.strip()
 
     predicted_categories = []
@@ -143,16 +120,13 @@ def classify_file(input_file, output_file):
         predicted_categories.append(category)
         confidences.append(confidence)
 
-
     df["Predicted Category"] = predicted_categories
+
     df["Confidence"] = confidences
 
-
-    # Fix encoding
     for col in df.columns:
 
         df[col] = df[col].astype(str).apply(clean_text)
-
 
     df.to_excel(output_file, index=False, engine="openpyxl")
 
