@@ -1,8 +1,16 @@
 import pandas as pd
+import os
+import json
+import torch
+
 from sentence_transformers import SentenceTransformer, util
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 
+# ============================
 # Fix encoding function
+# ============================
+
 def clean_text(text):
     if isinstance(text, str):
         text = text.replace("â€“", "-")
@@ -14,7 +22,9 @@ def clean_text(text):
     return text
 
 
-MODEL_NAME = "all-MiniLM-L6-v2"
+# ============================
+# Categories
+# ============================
 
 CATEGORIES = [
     "IT - System linkage issue",
@@ -32,52 +42,118 @@ CATEGORIES = [
 ]
 
 
+# ============================
+# Fine-tuned classifier
+# ============================
+
+class FineTunedClassifier:
+
+    def __init__(self):
+
+        self.model = AutoModelForSequenceClassification.from_pretrained("model")
+
+        self.tokenizer = AutoTokenizer.from_pretrained("model")
+
+        with open("model/label_map.json") as f:
+            self.label_map = json.load(f)
+
+        self.reverse_map = {v: k for k, v in self.label_map.items()}
+
+
+    def predict(self, row):
+
+        text = " | ".join([f"{col}: {row[col]}" for col in row.index])
+
+        inputs = self.tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            padding=True
+        )
+
+        outputs = self.model(**inputs)
+
+        pred = torch.argmax(outputs.logits, dim=1).item()
+
+        confidence = torch.softmax(outputs.logits, dim=1).max().item()
+
+        return self.reverse_map[pred], confidence
+
+
+# ============================
+# Semantic fallback classifier
+# ============================
+
 class OfflineClassifier:
 
     def __init__(self):
-        self.model = SentenceTransformer(MODEL_NAME)
+
+        self.model = SentenceTransformer("all-MiniLM-L6-v2")
+
         self.cat_embeddings = self.model.encode(CATEGORIES)
 
-    def build_context(self, row):
-        return " | ".join([f"{col}: {row[col]}" for col in row.index])
 
     def predict(self, row):
-        text = self.build_context(row)
-        emb = self.model.encode(text)
-        scores = util.cos_sim(emb, self.cat_embeddings)
-        idx = scores.argmax()
-        conf = float(scores.max())
-        return CATEGORIES[idx], conf
 
+        text = " | ".join([f"{col}: {row[col]}" for col in row.index])
+
+        emb = self.model.encode(text)
+
+        scores = util.cos_sim(emb, self.cat_embeddings)
+
+        idx = scores.argmax()
+
+        confidence = float(scores.max())
+
+        return CATEGORIES[idx], confidence
+
+
+# ============================
+# Main classification function
+# ============================
 
 def classify_file(input_file, output_file):
 
-    clf = OfflineClassifier()
+    # Select classifier automatically
+    if os.path.exists("model") and os.path.exists("model/label_map.json"):
+
+        print("Using Fine-Tuned Model")
+
+        clf = FineTunedClassifier()
+
+    else:
+
+        print("Using Semantic Similarity Model")
+
+        clf = OfflineClassifier()
+
 
     df = pd.read_excel(input_file)
 
-    # Remove hidden spaces from column names
+    # Fix column names
     df.columns = df.columns.str.strip()
 
-    categories = []
+    predicted_categories = []
     confidences = []
 
     for _, row in df.iterrows():
 
-        cat, conf = clf.predict(row)
+        category, confidence = clf.predict(row)
 
-        categories.append(cat)
-        confidences.append(conf)
+        predicted_categories.append(category)
+        confidences.append(confidence)
 
-    # Assign predictions
-    df["Predicted Category"] = categories
+
+    df["Predicted Category"] = predicted_categories
     df["Confidence"] = confidences
 
-    # Fix encoding issues
+
+    # Fix encoding
     for col in df.columns:
+
         df[col] = df[col].astype(str).apply(clean_text)
 
-    # Save file
+
     df.to_excel(output_file, index=False, engine="openpyxl")
 
     print("Classification complete:", output_file)
