@@ -78,10 +78,10 @@ class EnterpriseIntentClassifier:
     def build_context(self, row):
 
         weights = {
-            "Ticket Summary": 3,
+            "Ticket Summary": 2,
             "Ticket Details": 3,
-            "Solution": 2,
-            "Work notes": 1
+            "Solution": 3,
+            "Work notes": 2
         }
 
         parts = []
