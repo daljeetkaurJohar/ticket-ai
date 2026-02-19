@@ -1,154 +1,58 @@
-import pandas as pd
-import numpy as np
 import json
-import os
-
+import torch
+import joblib
+import numpy as np
 from sentence_transformers import SentenceTransformer, util
-from classifier import auto_label  # rule engine boost
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from classifier import rule_override
 
-
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-JSON_FILE = "data/category_examples.json"
-AUTO_LEARN_FILE = "data/auto_learn.xlsx"
-CONFIDENCE_THRESHOLD = 0.85
-
-
-class EnterpriseIntentClassifier:
+class EliteClassifier:
 
     def __init__(self):
 
-        print("Loading Enterprise Intent Classifier...")
+        self.mpnet = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
 
-        if not os.path.exists(JSON_FILE):
-            raise Exception("category_examples.json not found in data folder")
+        with open("models/mpnet/embeddings.json") as f:
+            self.category_embeddings = json.load(f)
 
-        self.model = SentenceTransformer(MODEL_NAME)
+        self.tokenizer = AutoTokenizer.from_pretrained("models/deberta")
+        self.deberta = AutoModelForSequenceClassification.from_pretrained("models/deberta")
 
-        with open(JSON_FILE, "r", encoding="utf-8") as f:
-            self.data = json.load(f)
+        self.meta = joblib.load("models/meta.pkl")
 
-        self.categories = []
-        centroid_list = []
+        with open("models/temperature.pkl", "rb") as f:
+            self.temperature = joblib.load(f)
 
-        for category, content in self.data.items():
+    def predict(self, text):
 
-            vectors = []
+        # Stage 0 Rule Override
+        rule_pred = rule_override(text)
+        if rule_pred:
+            return rule_pred, 1.0
 
-            if isinstance(content, list):
-                vectors.extend(self.model.encode(content))
-            else:
-                if "examples" in content:
-                    vectors.extend(self.model.encode(content["examples"]))
-                if "symptoms" in content:
-                    vectors.extend(self.model.encode(content["symptoms"]))
-                if "causes" in content:
-                    vectors.extend(self.model.encode(content["causes"]))
-                if "definition" in content:
-                    vectors.extend(self.model.encode([content["definition"]]))
+        # Stage 1 MPNet Retrieval
+        emb = self.mpnet.encode(text)
 
-            centroid = np.mean(vectors, axis=0)
-            centroid_list.append(centroid)
-            self.categories.append(category)
+        scores = {}
+        for cat, embs in self.category_embeddings.items():
+            embs = torch.tensor(embs)
+            sim = util.cos_sim(torch.tensor(emb), embs)
+            scores[cat] = float(sim.max())
 
-        self.centroids = np.vstack(centroid_list)
+        top_cat = max(scores, key=scores.get)
 
-        print("Classifier ready with", len(self.categories), "categories")
+        # Stage 2 DeBERTa
+        inputs = self.tokenizer(text, return_tensors="pt", truncation=True)
+        outputs = self.deberta(**inputs)
+        probs = torch.softmax(outputs.logits / self.temperature, dim=1)
 
-    # ==========================
-    # Weighted context builder
-    # ==========================
-    def build_context(self, row):
+        tf_score = torch.max(probs).item()
 
-        weights = {
-            "Ticket Summary": 2,
-            "Ticket Details": 3,
-            "Solution": 3,
-            "Work notes": 2,
-            "Work Notes": 2
-        }
+        # Stage 3 Meta Feature
+        feature_vector = np.array([[scores[top_cat], tf_score]])
 
-        parts = []
+        final_pred = self.meta.predict(feature_vector)[0]
 
-        for col, weight in weights.items():
-            if col in row and pd.notna(row[col]):
-                parts.extend([str(row[col])] * weight)
+        confidence = float(max(scores[top_cat], tf_score))
 
-        return " | ".join(parts)
-
-    # ==========================
-    # Hybrid Prediction
-    # ==========================
-    def predict_batch(self, df):
-
-        contexts = df.apply(self.build_context, axis=1).tolist()
-
-        embeddings = self.model.encode(
-            contexts,
-            batch_size=32,
-            show_progress_bar=False
-        )
-
-        predicted = []
-        confidence = []
-
-        for i, emb in enumerate(embeddings):
-
-            scores = util.cos_sim(
-                emb,
-                self.centroids
-            )[0].cpu().numpy()
-
-            best_idx = np.argmax(scores)
-            best_score = float(scores[best_idx])
-
-            ml_prediction = self.categories[best_idx]
-
-            # Rule engine boost
-            rule_prediction = auto_label(contexts[i])
-
-            if rule_prediction == ml_prediction:
-                best_score += 0.05  # small boost
-
-            predicted.append(ml_prediction)
-            confidence.append(round(best_score, 3))
-
-        return predicted, confidence
-
-    # ==========================
-    # Auto learning
-    # ==========================
-    def auto_learn(self, df):
-
-        high_conf = df[df["Confidence"] > 0.80]
-
-        if len(high_conf) == 0:
-            return
-
-        if os.path.exists(AUTO_LEARN_FILE):
-            old = pd.read_excel(AUTO_LEARN_FILE)
-            combined = pd.concat([old, high_conf])
-        else:
-            combined = high_conf
-
-        combined.to_excel(AUTO_LEARN_FILE, index=False)
-
-        print("Auto-learning data updated.")
-
-
-def classify_file(input_file, output_file):
-
-    clf = EnterpriseIntentClassifier()
-
-    df = pd.read_excel(input_file)
-    df.columns = df.columns.str.strip()
-
-    pred, conf = clf.predict_batch(df)
-
-    df["Predicted Category"] = pred
-    df["Confidence"] = conf
-
-    clf.auto_learn(df)
-
-    df.to_excel(output_file, index=False)
-
-    print("Classification complete.")
+        return final_pred, round(confidence, 3)
