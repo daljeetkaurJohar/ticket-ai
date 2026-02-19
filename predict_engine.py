@@ -6,12 +6,12 @@ import os
 from sentence_transformers import SentenceTransformer, util
 
 
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 JSON_FILE = "data/category_examples.json"
 
 AUTO_LEARN_FILE = "data/auto_learn.xlsx"
 
-CONFIDENCE_THRESHOLD = 0.55
+CONFIDENCE_THRESHOLD = 0.85
 
 
 class EnterpriseIntentClassifier:
