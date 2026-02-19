@@ -1,68 +1,54 @@
 {
-  "IT - Access & Permissions": {
-    "definition": "Technical restriction preventing login or module visibility",
-    "symptoms": ["access denied", "permission error", "authorization failure", "blocked"],
-    "causes": ["role not assigned", "provisioning failure", "incorrect rights"],
-    "examples": ["User unable to login to Anaplan", "Access denied while opening planning workspace"]
+  "IT_Support_Categories": {
+    "IT - Access & Permissions": {
+      "definition": "Technical restriction preventing login or module visibility",
+      "symptoms": ["access denied", "permission error", "authorization failure", "blocked"],
+      "causes": ["role not assigned", "provisioning failure", "incorrect rights"],
+      "examples": ["User unable to login to Anaplan", "Access denied while opening planning workspace"]
+    },
+    "IT - Backend Mapping & Metadata": {
+      "definition": "Incorrect system-side configuration of hierarchies or entities",
+      "symptoms": ["entity not mapped", "cost center unlinked", "hierarchy error"],
+      "causes": ["configuration missing", "setup incomplete", "metadata sync failure"],
+      "examples": ["Cost center not mapped in planning hierarchy", "Entity mapping missing in system"]
+    },
+    "IT - Integration & Connectivity": {
+      "definition": "Failure of data movement between different software platforms",
+      "symptoms": ["sync failed", "interface error", "data flow broken", "linkage missing"],
+      "causes": ["API failure", "SAP-Anaplan bridge down", "integration error"],
+      "examples": ["Data not flowing from SAP to Anaplan", "System sync failed"]
+    },
+    "IT - Environment Versioning": {
+      "definition": "System-side version mismatch or visibility settings",
+      "symptoms": ["forecast version hidden", "plan missing", "wrong version visible"],
+      "causes": ["version setup error", "model configuration", "visibility toggle"],
+      "examples": ["Forecast version not visible", "Plan version missing"]
+    },
+    "IT - Data Entry Support": {
+      "definition": "Technical assistance required to facilitate bulk or manual uploads",
+      "symptoms": ["input assistance", "upload error", "handholding", "entry failure"],
+      "causes": ["UI glitch", "bulk upload failure", "form field error"],
+      "examples": ["User needs help entering data", "Support required for data input"]
+    }
   },
-  "IT - Backend Mapping & Metadata": {
-    "definition": "Incorrect system-side configuration of hierarchies or entities",
-    "symptoms": ["entity not mapped", "cost center unlinked", "hierarchy error"],
-    "causes": ["configuration missing", "setup incomplete", "metadata sync failure"],
-    "examples": ["Cost center not mapped in planning hierarchy", "Entity mapping missing in system"]
-  },
-  "IT - Integration & Connectivity": {
-    "definition": "Failure of data movement between different software platforms",
-    "symptoms": ["sync failed", "interface error", "data flow broken", "linkage missing"],
-    "causes": ["API failure", "SAP-Anaplan bridge down", "integration error"],
-    "examples": ["Data not flowing from SAP to Anaplan", "System sync failed"]
-  },
-  "IT - Environment Versioning": {
-    "definition": "System-side version mismatch or visibility settings",
-    "symptoms": ["forecast version hidden", "plan missing", "wrong version visible"],
-    "causes": ["version setup error", "model configuration", "visibility toggle"],
-    "examples": ["Forecast version not visible", "Plan version missing"]
-  },
-  "IT - Data Entry Support": {
-    "definition": "Technical assistance required to facilitate bulk or manual uploads",
-    "symptoms": ["input assistance", "upload error", "handholding", "entry failure"],
-    "causes": ["UI glitch", "bulk upload failure", "form field error"],
-    "examples": ["User needs help entering data", "Support required for data input"]
-  },
-  "User - Master Data Request": {
-    "definition": "Business request for the creation of new entities/products",
-    "symptoms": ["create new", "add entity", "new cost center", "new product"],
-    "causes": ["business expansion", "new planning unit", "reorganization"],
-    "examples": ["New cost center needs to be created", "Add new entity to planning model"]
-  },
-  "User - Business Logic Update": {
-    "definition": "Intentional change in how the business wants to calculate figures",
-    "symptoms": ["logic change", "calculation update", "modify formula"],
-    "causes": ["strategy shift", "ABP requirement change", "new calculation rule"],
-    "examples": ["User requested change in planning logic", "Modify calculation logic"]
-  },
-  "User - Calculation Discrepancy": {
-    "definition": "Dispute between system results and offline Excel calculations",
-    "symptoms": ["excel vs system", "mismatch", "formula error", "incorrect value"],
-    "causes": ["manual excel error", "outdated offline file", "logic misalignment"],
-    "examples": ["Excel values not matching system", "System and Excel showing different values"]
-  },
-  "User - Capability & Training": {
-    "definition": "Lack of functional knowledge on how to navigate the system",
-    "symptoms": ["training needed", "how to use", "unfamiliar", "confusion"],
-    "causes": ["new user", "complex UI", "lack of documentation"],
-    "examples": ["User needs system training", "User confused about system functionality"]
-  },
-  "User - Missing Submissions": {
-    "definition": "Business process delay where user has not provided required inputs",
-    "symptoms": ["mapping pending", "delayed input", "file missing", "not submitted"],
-    "causes": ["resource busy", "input delay", "user oversight"],
-    "examples": ["User has not provided mapping", "Master data input pending"]
-  },
-  "User - File Version Control": {
-    "definition": "Confusion caused by multiple or outdated offline files",
-    "symptoms": ["outdated file", "multiple versions", "wrong excel"],
-    "causes": ["bad versioning", "using local copies", "conflicting files"],
-    "examples": ["User using outdated excel file", "Excel version confusion"]
+  "User_Support_Categories": {
+    "User - Master Data Request": {
+      "definition": "Business request for the creation of new entities or products",
+      "symptoms": ["create new entity", "missing master data", "setup product"],
+      "causes": ["New product launch", "organizational change", "entity expansion"],
+      "examples": ["Request to add new cost center", "New product SKU creation needed"]
+    },
+    "User - Functional & How-To Query": {
+      "definition": "Guidance on using specific system features or dashboards",
+      "symptoms": ["navigation help", "how-to query", "functional doubt"],
+      "causes": ["Lack of training", "new feature release", "complex UI"],
+      "examples": ["User asking how to trigger a workflow action", "Query on dashboard navigation"]
+    },
+    "User - Data Adjustment & Overrides": {
+      "definition": "Request to manually correct or override locked historical data",
+      "symptoms": ["wrong actuals", "data correction needed", "locked cell"],
+      "causes": ["Input error in source system", "late adjustment", "audit finding"],
+      "examples": ["Requesting a manual override for a locked Q1 actual", "Correcting historical data entries"]
+    }
   }
 }
