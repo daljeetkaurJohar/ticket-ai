@@ -1,206 +1,68 @@
 {
-  "IT - System Access issue": {
-    "definition": "User cannot access system due to authorization, role, or permission issues",
-    "symptoms": [
-      "unable to login",
-      "access denied",
-      "permission error",
-      "user cannot access workspace",
-      "authorization failure",
-      "login not working",
-      "user blocked from system"
-    ],
-    "causes": [
-      "role not assigned",
-      "user not provisioned",
-      "incorrect access rights",
-      "authentication failure",
-      "missing workspace access"
-    ],
-    "examples": [
-      "User unable to login to Anaplan",
-      "Access denied while opening planning workspace",
-      "User cannot access ABP model",
-      "Login failure after role reassignment",
-      "User does not have access to planning module",
-      "User unable to open model due to permission error",
-      "Workspace access missing for user",
-      "User cannot login after password reset",
-      "Access restricted for planning workspace",
-      "User not able to access version module"
-    ]
+  "IT - Access & Permissions": {
+    "definition": "Technical restriction preventing login or module visibility",
+    "symptoms": ["access denied", "permission error", "authorization failure", "blocked"],
+    "causes": ["role not assigned", "provisioning failure", "incorrect rights"],
+    "examples": ["User unable to login to Anaplan", "Access denied while opening planning workspace"]
   },
-
-  "IT - Master Data/ mapping issue": {
-    "definition": "System mapping or master data configuration missing or incorrect",
-    "symptoms": [
-      "mapping missing",
-      "entity not mapped",
-      "cost center not mapped",
-      "mapping incorrect",
-      "master data not linked"
-    ],
-    "causes": [
-      "mapping configuration missing",
-      "master data setup incomplete",
-      "hierarchy mapping missing"
-    ],
-    "examples": [
-      "Cost center not mapped in planning hierarchy",
-      "Entity mapping missing in system",
-      "Profit center not linked",
-      "Mapping not available for new entity",
-      "Master data mapping missing",
-      "Planning entity not mapped to hierarchy",
-      "System showing mapping error",
-      "Mapping issue for new business unit",
-      "Master data mapping incorrect",
-      "Hierarchy mapping missing"
-    ]
+  "IT - Backend Mapping & Metadata": {
+    "definition": "Incorrect system-side configuration of hierarchies or entities",
+    "symptoms": ["entity not mapped", "cost center unlinked", "hierarchy error"],
+    "causes": ["configuration missing", "setup incomplete", "metadata sync failure"],
+    "examples": ["Cost center not mapped in planning hierarchy", "Entity mapping missing in system"]
   },
-
-  "User - Master data incorporation in system": {
-    "definition": "User requesting new master data creation or addition",
-    "symptoms": [
-      "new entity needs to be added",
-      "new cost center required",
-      "new product needs creation"
-    ],
-    "causes": [
-      "new business entity",
-      "new planning unit added"
-    ],
-    "examples": [
-      "New cost center needs to be created",
-      "Add new entity to planning model",
-      "New profit center needs to be added",
-      "User requesting new product creation",
-      "Create new planning entity",
-      "New business unit needs addition",
-      "Add new region in planning model",
-      "New hierarchy needs creation",
-      "User provided new entity details",
-      "New master data incorporation required"
-    ]
+  "IT - Integration & Connectivity": {
+    "definition": "Failure of data movement between different software platforms",
+    "symptoms": ["sync failed", "interface error", "data flow broken", "linkage missing"],
+    "causes": ["API failure", "SAP-Anaplan bridge down", "integration error"],
+    "examples": ["Data not flowing from SAP to Anaplan", "System sync failed"]
   },
-
-  "IT - System Version issue": {
-    "definition": "Version mismatch or version configuration issue",
-    "symptoms": [
-      "version mismatch",
-      "incorrect version visible",
-      "version missing"
-    ],
-    "causes": [
-      "version setup issue",
-      "version configuration missing"
-    ],
-    "examples": [
-      "Forecast version not visible",
-      "Plan version missing",
-      "Version mismatch between modules",
-      "Incorrect version showing",
-      "Version not updated",
-      "Planning version not available",
-      "Wrong version selected",
-      "Version issue in planning model"
-    ]
+  "IT - Environment Versioning": {
+    "definition": "System-side version mismatch or visibility settings",
+    "symptoms": ["forecast version hidden", "plan missing", "wrong version visible"],
+    "causes": ["version setup error", "model configuration", "visibility toggle"],
+    "examples": ["Forecast version not visible", "Plan version missing"]
   },
-
-  "User - Logic changes during ABP": {
-    "definition": "User requesting change in planning or calculation logic",
-    "symptoms": [
-      "logic change required",
-      "planning logic update requested"
-    ],
-    "causes": [
-      "business logic change",
-      "planning requirement change"
-    ],
-    "examples": [
-      "User requested change in planning logic",
-      "Modify calculation logic",
-      "Update planning logic",
-      "Change forecast logic",
-      "Business requested logic update",
-      "Planning logic correction required"
-    ]
+  "IT - Data Entry Support": {
+    "definition": "Technical assistance required to facilitate bulk or manual uploads",
+    "symptoms": ["input assistance", "upload error", "handholding", "entry failure"],
+    "causes": ["UI glitch", "bulk upload failure", "form field error"],
+    "examples": ["User needs help entering data", "Support required for data input"]
   },
-
-  "User - Logic mistakes in excel vs system": {
-    "definition": "Mismatch between Excel calculations and system calculations",
-    "examples": [
-      "Excel values not matching system",
-      "Calculation mismatch",
-      "Excel data different from system",
-      "Manual Excel calculation incorrect",
-      "System and Excel showing different values",
-      "Excel formula incorrect",
-      "Excel planning logic incorrect"
-    ]
+  "User - Master Data Request": {
+    "definition": "Business request for the creation of new entities/products",
+    "symptoms": ["create new", "add entity", "new cost center", "new product"],
+    "causes": ["business expansion", "new planning unit", "reorganization"],
+    "examples": ["New cost center needs to be created", "Add new entity to planning model"]
   },
-
-  "IT - System linkage issue": {
-    "definition": "Integration or linkage between systems not working",
-    "examples": [
-      "Data not flowing from SAP to Anaplan",
-      "Integration failure between modules",
-      "System linkage missing",
-      "Interface not working",
-      "Integration error occurred",
-      "System sync failed",
-      "Data transfer not happening"
-    ]
+  "User - Business Logic Update": {
+    "definition": "Intentional change in how the business wants to calculate figures",
+    "symptoms": ["logic change", "calculation update", "modify formula"],
+    "causes": ["strategy shift", "ABP requirement change", "new calculation rule"],
+    "examples": ["User requested change in planning logic", "Modify calculation logic"]
   },
-
-  "User - System Knowledge Gap": {
-    "definition": "User needs help or does not understand system functionality",
-    "examples": [
-      "User needs system training",
-      "User does not know how to use planning model",
-      "User confused about system functionality",
-      "User requires system guidance",
-      "User unfamiliar with planning module"
-    ]
+  "User - Calculation Discrepancy": {
+    "definition": "Dispute between system results and offline Excel calculations",
+    "symptoms": ["excel vs system", "mismatch", "formula error", "incorrect value"],
+    "causes": ["manual excel error", "outdated offline file", "logic misalignment"],
+    "examples": ["Excel values not matching system", "System and Excel showing different values"]
   },
-
-  "IT - Data entry handholding": {
-    "definition": "User needs IT assistance for data entry",
-    "examples": [
-      "User needs help entering data",
-      "Support required for data input",
-      "User needs assistance updating planning data",
-      "User unable to enter planning values"
-    ]
+  "User - Capability & Training": {
+    "definition": "Lack of functional knowledge on how to navigate the system",
+    "symptoms": ["training needed", "how to use", "unfamiliar", "confusion"],
+    "causes": ["new user", "complex UI", "lack of documentation"],
+    "examples": ["User needs system training", "User confused about system functionality"]
   },
-
-  "User - Mapping missing": {
-    "definition": "User did not provide required mapping information",
-    "examples": [
-      "User has not provided mapping",
-      "Mapping file missing from user",
-      "User mapping information pending",
-      "Mapping not submitted by business"
-    ]
+  "User - Missing Submissions": {
+    "definition": "Business process delay where user has not provided required inputs",
+    "symptoms": ["mapping pending", "delayed input", "file missing", "not submitted"],
+    "causes": ["resource busy", "input delay", "user oversight"],
+    "examples": ["User has not provided mapping", "Master data input pending"]
   },
-
-  "User - Master data delayed input": {
-    "definition": "User delayed providing required master data",
-    "examples": [
-      "User has not provided master data",
-      "Master data input pending",
-      "Planning input delayed",
-      "User delayed master data submission"
-    ]
-  },
-
-  "User - Multiple versions issue in excel": {
-    "definition": "Multiple Excel versions causing confusion",
-    "examples": [
-      "User using outdated excel file",
-      "Multiple excel files exist",
-      "Wrong excel version used",
-      "Excel version confusion"
-    ]
+  "User - File Version Control": {
+    "definition": "Confusion caused by multiple or outdated offline files",
+    "symptoms": ["outdated file", "multiple versions", "wrong excel"],
+    "causes": ["bad versioning", "using local copies", "conflicting files"],
+    "examples": ["User using outdated excel file", "Excel version confusion"]
   }
 }
