@@ -80,10 +80,8 @@ class EnterpriseIntentClassifier:
         weights = {
             "Ticket Summary": 3,
             "Ticket Details": 3,
-            "Problem": 2,
-            "Cause": 2,
-            "Work notes": 1,
-            "Assignment Group": 1
+            "Solution": 2,
+            "Work notes": 1
         }
 
         parts = []
