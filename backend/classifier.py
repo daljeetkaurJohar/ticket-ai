@@ -20,11 +20,11 @@ CATEGORIES = [
 class TicketClassifier:
     def __init__(self):
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
-        self.category_embeddings = self.model.encode(CATEGORIES)
+        self.cat_embeddings = self.model.encode(CATEGORIES)
 
     def classify(self, text):
-        embedding = self.model.encode([text])
-        similarity = cosine_similarity(embedding, self.category_embeddings)
-        idx = np.argmax(similarity)
-        confidence = float(similarity[0][idx])
+        emb = self.model.encode([text])
+        sim = cosine_similarity(emb, self.cat_embeddings)
+        idx = np.argmax(sim)
+        confidence = float(sim[0][idx])
         return CATEGORIES[idx], confidence
