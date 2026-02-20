@@ -1,36 +1,75 @@
 import streamlit as st
-import requests
 import pandas as pd
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
+from io import BytesIO
 
-API_URL = "http://backend:8000"
+st.title("Enterprise Ticket Classifier")
 
-st.title("Enterprise Ticket Classification Dashboard")
+CATEGORIES = [
+    "IT - System linkage issue",
+    "IT - System Access issue",
+    "IT – System Version issue",
+    "IT – Data entry handholding",
+    "IT – Master Data/ mapping issue",
+    "User - Mapping missing",
+    "User – Master data delayed input",
+    "User - Logic changes during ABP",
+    "User – Master data incorporation in system",
+    "User – System Knowledge Gap",
+    "User - Logic mistakes in excel vs system",
+    "User - Multiple versions issue in excel"
+]
+
+@st.cache_resource
+def load_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")
+
+model = load_model()
+category_embeddings = model.encode(CATEGORIES)
+
+def classify(text):
+    emb = model.encode([text])
+    sim = cosine_similarity(emb, category_embeddings)
+    idx = np.argmax(sim)
+    return CATEGORIES[idx], float(sim[0][idx])
 
 file = st.file_uploader("Upload Excel", type=["xlsx"])
 
 if file:
-    res = requests.post(
-        f"{API_URL}/upload",
-        files={"file": file}
-    )
+    df = pd.read_excel(file)
 
-    batch_id = res.json()["batch_id"]
+    if "Description" not in df.columns:
+        st.error("Excel must contain 'Description' column")
+    else:
+        cats = []
+        confs = []
 
-    st.success(f"Batch Created: {batch_id}")
+        with st.spinner("Classifying..."):
+            for desc in df["Description"]:
+                c, s = classify(str(desc))
+                cats.append(c)
+                confs.append(s)
 
-    if st.button("Start Classification"):
-        requests.post(f"{API_URL}/classify/{batch_id}")
-        st.success("Classification Started")
+        df["AI_Category"] = cats
+        df["Confidence"] = confs
 
-if st.button("Load Dashboard"):
-    tickets = requests.get(f"{API_URL}/tickets/{batch_id}").json()
-    df = pd.DataFrame(tickets)
+        st.success("Classification Complete")
 
-    st.metric("Total Tickets", len(df))
-    st.metric("IT Issues", df["category"].str.startswith("IT").sum())
-    st.metric("User Issues", df["category"].str.startswith("User").sum())
+        st.metric("Total Tickets", len(df))
+        st.metric("IT Issues", df["AI_Category"].str.startswith("IT").sum())
+        st.metric("User Issues", df["AI_Category"].str.startswith("User").sum())
 
-    st.subheader("Category Breakdown")
-    df["category"].value_counts().plot(kind="bar")
-    st.pyplot(plt)
+        st.bar_chart(df["AI_Category"].value_counts())
+
+        output = BytesIO()
+        df.to_excel(output, index=False)
+        output.seek(0)
+
+        st.download_button(
+            "Download Classified Excel",
+            output,
+            file_name="classified.xlsx"
+        )
