@@ -7,14 +7,19 @@ classifier = TicketClassifier()
 async def process_batch(batch_id):
     tickets = await db.tickets.find({"batch_id": batch_id}).to_list(None)
 
-    for ticket in tickets:
-        category, confidence = classifier.classify(ticket["description"])
+    for t in tickets:
+        cat, conf = classifier.classify(t["description"])
 
         await db.tickets.update_one(
-            {"_id": ticket["_id"]},
+            {"_id": t["_id"]},
             {"$set": {
-                "category": category,
-                "confidence": confidence,
+                "category": cat,
+                "confidence": conf,
                 "classified": True
             }}
         )
+
+    await db.batches.update_one(
+        {"batch_id": batch_id},
+        {"$set": {"status": "completed"}}
+    )
