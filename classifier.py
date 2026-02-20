@@ -1,16 +1,30 @@
-CATEGORIES = {
-    "IT - System Access issue": {
-        "strong": ["password reset", "id locked", "access granted"]
-    },
-    "User - Multiple versions issue in excel": {
-        "strong": ["wrong excel version", "multiple excel files"]
-    }
-}
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
-def rule_override(text):
-    text = text.lower()
-    for category, keywords in CATEGORIES.items():
-        for word in keywords["strong"]:
-            if word in text:
-                return category
-    return None
+CATEGORIES = [
+    "IT - System linkage issue",
+    "IT - System Access issue",
+    "IT – System Version issue",
+    "IT – Data entry handholding",
+    "IT – Master Data/ mapping issue",
+    "User - Mapping missing",
+    "User – Master data delayed input",
+    "User - Logic changes during ABP",
+    "User – Master data incorporation in system",
+    "User – System Knowledge Gap",
+    "User - Logic mistakes in excel vs system",
+    "User - Multiple versions issue in excel"
+]
+
+class TicketClassifier:
+    def __init__(self):
+        self.model = SentenceTransformer("all-MiniLM-L6-v2")
+        self.category_embeddings = self.model.encode(CATEGORIES)
+
+    def classify(self, text):
+        embedding = self.model.encode([text])
+        similarity = cosine_similarity(embedding, self.category_embeddings)
+        idx = np.argmax(similarity)
+        confidence = float(similarity[0][idx])
+        return CATEGORIES[idx], confidence
