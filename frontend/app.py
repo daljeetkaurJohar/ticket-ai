@@ -5,8 +5,13 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from io import BytesIO
 
+st.set_page_config(page_title="Enterprise Ticket Classifier", layout="wide")
+
 st.title("Enterprise Ticket Classifier")
 
+# -------------------------
+# Category List
+# -------------------------
 CATEGORIES = [
     "IT - System linkage issue",
     "IT - System Access issue",
@@ -22,6 +27,9 @@ CATEGORIES = [
     "User - Multiple versions issue in excel"
 ]
 
+# -------------------------
+# Load Model (cached)
+# -------------------------
 @st.cache_resource
 def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
@@ -29,46 +37,104 @@ def load_model():
 model = load_model()
 category_embeddings = model.encode(CATEGORIES)
 
+# -------------------------
+# Classification Function
+# -------------------------
 def classify(text):
     emb = model.encode([text])
     sim = cosine_similarity(emb, category_embeddings)
     idx = np.argmax(sim)
     return CATEGORIES[idx], float(sim[0][idx])
 
-file = st.file_uploader("Upload Excel", type=["xlsx"])
+# -------------------------
+# File Upload
+# -------------------------
+file = st.file_uploader("Upload Excel File", type=["xlsx"])
 
 if file:
     df = pd.read_excel(file)
 
-    if "Description" not in df.columns:
-        st.error("Excel must contain 'Description' column")
-    else:
-        categories = []
-        confidences = []
+    # -------------------------
+    # Auto-detect description columns
+    # -------------------------
+    possible_cols = [
+        "Description",
+        "Ticket Details",
+        "Ticket Summary",
+        "Work notes",
+        "Problem",
+        "Solution"
+    ]
 
-        with st.spinner("Classifying tickets..."):
-            for desc in df["Description"]:
-                cat, conf = classify(str(desc))
-                categories.append(cat)
-                confidences.append(conf)
+    available_cols = [col for col in df.columns if col.strip() in possible_cols]
 
-        df["AI_Category"] = categories
-        df["Confidence"] = confidences
+    if not available_cols:
+        st.error("No suitable description column found.")
+        st.stop()
 
-        st.success("Classification Complete")
+    st.success(f"Using columns: {', '.join(available_cols)}")
 
-        st.metric("Total Tickets", len(df))
-        st.metric("IT Issues", df["AI_Category"].str.startswith("IT").sum())
-        st.metric("User Issues", df["AI_Category"].str.startswith("User").sum())
+    # Combine selected columns into one text field
+    df["__combined_text__"] = df[available_cols].fillna("").agg(" ".join, axis=1)
 
-        st.bar_chart(df["AI_Category"].value_counts())
+    # -------------------------
+    # Classification
+    # -------------------------
+    categories = []
+    confidences = []
 
-        output = BytesIO()
-        df.to_excel(output, index=False)
-        output.seek(0)
+    with st.spinner("Classifying tickets..."):
+        for text in df["__combined_text__"]:
+            cat, conf = classify(str(text))
+            categories.append(cat)
+            confidences.append(conf)
 
-        st.download_button(
-            "Download Classified Excel",
-            output,
-            file_name="classified.xlsx"
-        )
+    df["AI_Category"] = categories
+    df["Confidence"] = confidences
+
+    # -------------------------
+    # Dashboard Metrics
+    # -------------------------
+    st.subheader("Dashboard")
+
+    total = len(df)
+    it_count = df["AI_Category"].str.startswith("IT").sum()
+    user_count = df["AI_Category"].str.startswith("User").sum()
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Tickets", total)
+    col2.metric("IT Issues", it_count)
+    col3.metric("User Issues", user_count)
+
+    # Category breakdown chart
+    st.subheader("Category Breakdown")
+    st.bar_chart(df["AI_Category"].value_counts())
+
+    # -------------------------
+    # Low Confidence Highlight
+    # -------------------------
+    low_conf_df = df[df["Confidence"] < 0.60]
+
+    if not low_conf_df.empty:
+        st.warning(f"{len(low_conf_df)} tickets have low confidence (<0.60)")
+        st.dataframe(low_conf_df)
+
+    # -------------------------
+    # Show Classified Data
+    # -------------------------
+    st.subheader("Classified Tickets")
+    st.dataframe(df.drop(columns=["__combined_text__"]))
+
+    # -------------------------
+    # Download Excel
+    # -------------------------
+    output = BytesIO()
+    df.drop(columns=["__combined_text__"]).to_excel(output, index=False)
+    output.seek(0)
+
+    st.download_button(
+        "Download Classified Excel",
+        output,
+        file_name="classified_tickets.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
