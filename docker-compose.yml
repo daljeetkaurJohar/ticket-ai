@@ -2,23 +2,30 @@ version: "3.9"
 
 services:
 
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+
   backend:
     build: ./backend
+    container_name: backend
+    restart: always
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=ticket_ai
     ports:
       - "8000:8000"
-    env_file:
-      - .env
     depends_on:
       - mongo
 
   frontend:
     build: ./frontend
+    container_name: frontend
+    restart: always
     ports:
       - "8501:8501"
     depends_on:
       - backend
-
-  mongo:
-    image: mongo
-    ports:
-      - "27017:27017"
