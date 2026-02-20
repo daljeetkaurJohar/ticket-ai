@@ -16,3 +16,9 @@ sentence-transformers
 scikit-learn
 matplotlib
 openpyxl
+streamlit
+pandas
+sentence-transformers
+scikit-learn
+openpyxl
+torch
