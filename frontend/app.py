@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-import matplotlib.pyplot as plt
 from io import BytesIO
 
 st.title("Enterprise Ticket Classifier")
@@ -44,17 +43,17 @@ if file:
     if "Description" not in df.columns:
         st.error("Excel must contain 'Description' column")
     else:
-        cats = []
-        confs = []
+        categories = []
+        confidences = []
 
-        with st.spinner("Classifying..."):
+        with st.spinner("Classifying tickets..."):
             for desc in df["Description"]:
-                c, s = classify(str(desc))
-                cats.append(c)
-                confs.append(s)
+                cat, conf = classify(str(desc))
+                categories.append(cat)
+                confidences.append(conf)
 
-        df["AI_Category"] = cats
-        df["Confidence"] = confs
+        df["AI_Category"] = categories
+        df["Confidence"] = confidences
 
         st.success("Classification Complete")
 
