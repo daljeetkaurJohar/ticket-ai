@@ -6,3 +6,9 @@ sentence-transformers
 scikit-learn
 python-multipart
 openpyxl
+streamlit
+pandas
+sentence-transformers
+scikit-learn
+openpyxl
+torch
