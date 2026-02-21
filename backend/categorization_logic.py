@@ -2,32 +2,33 @@
 
 import pandas as pd
 import re
-from collections import defaultdict
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 class CategorizationLogic:
 
     def __init__(self, excel_file):
-        self.excel_file = excel_file
-        self.issue_reference_map = self._build_reference_engine()
+        self.issue_text_map = self._build_issue_text_map(excel_file)
+        self._build_vector_engine()
 
-    # ------------------------------
-    # Clean Text
-    # ------------------------------
+    # -----------------------------
+    # Clean text
+    # -----------------------------
     def _clean(self, text):
         text = str(text).lower()
         text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text)
         return text
 
-    # ------------------------------
-    # Build Reference Engine
-    # ------------------------------
-    def _build_reference_engine(self):
+    # -----------------------------
+    # Build issue cluster texts
+    # -----------------------------
+    def _build_issue_text_map(self, excel_file):
 
-        xls = pd.ExcelFile(self.excel_file)
+        xls = pd.ExcelFile(excel_file)
         sheets = xls.sheet_names
 
-        issue_map = defaultdict(list)
+        issue_map = {}
 
         for sheet in sheets:
             df = pd.read_excel(xls, sheet)
@@ -48,35 +49,47 @@ class CategorizationLogic:
 
                 combined_text = self._clean(combined_text)
 
-                if issue and combined_text.strip():
-                    issue_map[issue].append(combined_text)
+                if not issue:
+                    continue
+
+                if issue not in issue_map:
+                    issue_map[issue] = ""
+
+                issue_map[issue] += " " + combined_text
 
         return issue_map
 
-    # ------------------------------
+    # -----------------------------
+    # Build TF-IDF engine
+    # -----------------------------
+    def _build_vector_engine(self):
+
+        self.issues = list(self.issue_text_map.keys())
+        corpus = [self.issue_text_map[i] for i in self.issues]
+
+        self.vectorizer = TfidfVectorizer(
+            stop_words="english",
+            ngram_range=(1, 2),
+            min_df=1
+        )
+
+        self.issue_vectors = self.vectorizer.fit_transform(corpus)
+
+    # -----------------------------
     # Categorize
-    # ------------------------------
+    # -----------------------------
     def categorize(self, text):
 
         text = self._clean(text)
 
-        best_issue = None
-        best_score = 0
+        text_vector = self.vectorizer.transform([text])
 
-        for issue, reference_texts in self.issue_reference_map.items():
+        similarities = cosine_similarity(text_vector, self.issue_vectors)[0]
 
-            score = 0
+        best_index = similarities.argmax()
+        best_score = similarities[best_index]
 
-            for ref in reference_texts:
-                common_words = set(text.split()) & set(ref.split())
-                score += len(common_words)
+        if best_score < 0.05:
+            return "Needs Manual Review", round(float(best_score), 3)
 
-            if score > best_score:
-                best_score = score
-                best_issue = issue
-
-        if best_issue:
-            confidence = min(best_score / 20, 1.0)
-            return best_issue, round(confidence, 3)
-
-        return "Needs Manual Review", 0.0
+        return self.issues[best_index], round(float(best_score), 3)
