@@ -1,52 +1,38 @@
-import pandas as pd
-import re
-from sentence_transformers import SentenceTransformer, util
 import torch
+import joblib
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch.nn.functional as F
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+# Load model once
+model_path = "model"
 
-def clean_text(text):
-    if pd.isna(text):
-        return ""
-    return re.sub(r'[^a-zA-Z0-9 ]', '', str(text).lower())
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+model = AutoModelForSequenceClassification.from_pretrained(model_path)
 
-# Load training examples from issue category.xlsx
-def load_training_data():
-    xls = pd.ExcelFile("data/issue_category.xlsx")
-    df_list = []
+label_encoder = joblib.load("label_encoder.pkl")
 
-    for sheet in xls.sheet_names:
-        temp = pd.read_excel(xls, sheet)
-        df_list.append(temp)
-
-    df = pd.concat(df_list, ignore_index=True)
-
-    df["combined_text"] = (
-        df["Short Description"].astype(str) + " " +
-        df["Description"].astype(str)
-    ).apply(clean_text)
-
-    return df
-
-training_df = load_training_data()
-
-# Precompute embeddings ONCE
-training_embeddings = model.encode(
-    training_df["combined_text"].tolist(),
-    convert_to_tensor=True
-)
+model.eval()
 
 def categorize_ticket(short_desc, desc):
 
-    ticket_text = clean_text(short_desc + " " + desc)
-    ticket_embedding = model.encode(ticket_text, convert_to_tensor=True)
+    text = str(short_desc) + " " + str(desc)
 
-    cosine_scores = util.pytorch_cos_sim(ticket_embedding, training_embeddings)[0]
+    inputs = tokenizer(
+        text,
+        return_tensors="pt",
+        truncation=True,
+        padding=True,
+        max_length=256
+    )
 
-    best_match_idx = torch.argmax(cosine_scores).item()
+    with torch.no_grad():
+        outputs = model(**inputs)
 
-    predicted_category = training_df.iloc[best_match_idx]["Issue"]
+    probabilities = F.softmax(outputs.logits, dim=1)
+    predicted_class = torch.argmax(probabilities, dim=1).item()
 
-    confidence = float(cosine_scores[best_match_idx])
+    confidence = probabilities[0][predicted_class].item()
 
-    return predicted_category, round(confidence, 3)
+    predicted_label = label_encoder.inverse_transform([predicted_class])[0]
+
+    return predicted_label, round(confidence, 3)
