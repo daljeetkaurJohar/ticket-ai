@@ -4,7 +4,7 @@ import streamlit as st
 from categorization_logic import CategorizationLogic
 
 
-@st.cache_resource
+#@st.cache_resource
 def load_model():
     return CategorizationLogic("data/issue category.xlsx")
 
