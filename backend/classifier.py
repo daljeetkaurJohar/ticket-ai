@@ -1,30 +1,64 @@
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
+import pandas as pd
+import re
+from sentence_transformers import SentenceTransformer, util
 
-CATEGORIES = [
-    "IT - System linkage issue",
-    "IT - System Access issue",
-    "IT – System Version issue",
-    "IT – Data entry handholding",
-    "IT – Master Data/ mapping issue",
-    "User - Mapping missing",
-    "User – Master data delayed input",
-    "User - Logic changes during ABP",
-    "User – Master data incorporation in system",
-    "User – System Knowledge Gap",
-    "User - Logic mistakes in excel vs system",
-    "User - Multiple versions issue in excel"
-]
+# Load model once
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
-class TicketClassifier:
-    def __init__(self):
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
-        self.cat_embeddings = self.model.encode(CATEGORIES)
+# -----------------------------
+# Load Issue Category Excel
+# -----------------------------
+def load_category_logic():
+    xls = pd.ExcelFile("data/issue category.xlsx")
+    df_list = []
 
-    def classify(self, text):
-        emb = self.model.encode([text])
-        sim = cosine_similarity(emb, self.cat_embeddings)
-        idx = np.argmax(sim)
-        confidence = float(sim[0][idx])
-        return CATEGORIES[idx], confidence
+    for sheet in xls.sheet_names:
+        temp = pd.read_excel(xls, sheet)
+        df_list.append(temp)
+
+    category_df = pd.concat(df_list, ignore_index=True)
+    return category_df
+
+category_df = load_category_logic()
+
+# -----------------------------
+# Clean Text
+# -----------------------------
+def clean_text(text):
+    if pd.isna(text):
+        return ""
+    text = str(text).lower()
+    text = re.sub(r'[^a-zA-Z0-9 ]', '', text)
+    return text
+
+# -----------------------------
+# Categorize Ticket
+# -----------------------------
+def categorize_ticket(short_desc, desc):
+
+    ticket_text = clean_text(short_desc + " " + desc)
+    ticket_embedding = model.encode(ticket_text, convert_to_tensor=True)
+
+    best_score = -1
+    best_category = "Uncategorized"
+
+    for _, row in category_df.iterrows():
+
+        category_name = row["Issue"]
+
+        combined_text = (
+            str(row.get("Definition", "")) + " " +
+            str(row.get("Symptoms", "")) + " " +
+            str(row.get("Causes", ""))
+        )
+
+        combined_clean = clean_text(combined_text)
+        category_embedding = model.encode(combined_clean, convert_to_tensor=True)
+
+        score = util.pytorch_cos_sim(ticket_embedding, category_embedding).item()
+
+        if score > best_score:
+            best_score = score
+            best_category = category_name
+
+    return best_category
