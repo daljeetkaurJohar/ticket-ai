@@ -40,7 +40,7 @@ class CategorizationLogic:
 
         for sheet in xls.sheet_names:
 
-            # Skip rule sheet
+            # Skip unwanted sheet if needed
             if sheet.lower() == "sheet1":
                 continue
 
@@ -49,9 +49,9 @@ class CategorizationLogic:
             if df.empty:
                 continue
 
-            # -----------------------------------
-            # Detect Category Column Automatically
-            # -----------------------------------
+            # ------------------------------
+            # Detect Category Column
+            # ------------------------------
             category_col = None
             for col in df.columns:
                 if "category" in col.lower():
@@ -59,11 +59,11 @@ class CategorizationLogic:
                     break
 
             if category_col is None:
-                continue  # skip sheet if no category column
+                continue
 
-            # -----------------------------------
-            # Detect Text Columns Automatically
-            # -----------------------------------
+            # ------------------------------
+            # Detect Text Columns
+            # ------------------------------
             desc_col = None
             summary_col = None
             notes_col = None
@@ -80,15 +80,14 @@ class CategorizationLogic:
                 if "work" in col_lower:
                     notes_col = col
 
-            # Drop rows without category
             df = df.dropna(subset=[category_col])
 
             if df.empty:
                 continue
 
-            # -----------------------------------
-            # SAFE TEXT BUILDING (NO .astype ERROR)
-            # -----------------------------------
+            # ------------------------------
+            # Safe Text Combination
+            # ------------------------------
             desc_series = df[desc_col].astype(str) if desc_col and desc_col in df.columns else ""
             summary_series = df[summary_col].astype(str) if summary_col and summary_col in df.columns else ""
             notes_series = df[notes_col].astype(str) if notes_col and notes_col in df.columns else ""
@@ -126,7 +125,7 @@ class CategorizationLogic:
         self.vectorizer = TfidfVectorizer(
             stop_words="english",
             ngram_range=(1, 2),
-            min_df=2
+            min_df=1  # IMPORTANT FIX
         )
 
         self.training_vectors = self.vectorizer.fit_transform(
@@ -135,7 +134,7 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # CATEGORIZE NEW TICKET
+    # CATEGORIZE NEW TICKET (FIXED VERSION)
     # ---------------------------------------------------
     def categorize(self, text):
 
@@ -146,11 +145,20 @@ class CategorizationLogic:
         similarities = cosine_similarity(
             input_vector,
             self.training_vectors
+        )[0]
+
+        # Add similarity scores to dataframe
+        temp_df = self.training_df.copy()
+        temp_df["similarity"] = similarities
+
+        # ---- CATEGORY LEVEL AGGREGATION (MAIN FIX) ----
+        category_scores = (
+            temp_df.groupby("Category")["similarity"]
+            .mean()
+            .sort_values(ascending=False)
         )
 
-        best_index = similarities.argmax()
-        best_score = similarities[0][best_index]
+        predicted_category = category_scores.index[0]
+        confidence = category_scores.iloc[0]
 
-        predicted_category = self.training_df.iloc[best_index]["Category"]
-
-        return predicted_category, round(float(best_score), 3)
+        return predicted_category, round(float(confidence), 3)
