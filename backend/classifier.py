@@ -1,8 +1,16 @@
 # backend/classifier.py
 
+import streamlit as st
 from categorization_logic import CategorizationLogic
 
-logic = CategorizationLogic("data/issue category.xlsx")
+
+@st.cache_resource
+def load_model():
+    return CategorizationLogic("data/issue category.xlsx")
+
+
+logic = load_model()
+
 
 def predict_ticket(text: str):
 
