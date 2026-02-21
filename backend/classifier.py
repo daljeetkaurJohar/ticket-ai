@@ -11,5 +11,5 @@ def predict_ticket(text: str):
     return {
         "category": category,
         "confidence": confidence,
-        "source": "Excel Reference Engine"
+        "source": "TF-IDF Reference Engine"
     }
