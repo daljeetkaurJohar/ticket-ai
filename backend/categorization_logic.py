@@ -1,17 +1,15 @@
 # backend/categorization_logic.py
 
-import pandas as pd
 import re
-from collections import defaultdict
 
 
 class CategorizationLogic:
 
-    def __init__(self, excel_file):
-        self.category_keywords = self._build_keyword_dictionary(excel_file)
+    def __init__(self):
+        self.rules = self._build_rules()
 
     # ----------------------------------
-    # Clean Text
+    # Clean text
     # ----------------------------------
     def _clean(self, text):
         text = str(text).lower()
@@ -19,56 +17,52 @@ class CategorizationLogic:
         return text
 
     # ----------------------------------
-    # Extract Keywords Per Category
+    # Explicit deterministic rules
     # ----------------------------------
-    def _build_keyword_dictionary(self, excel_file):
+    def _build_rules(self):
 
-        df = pd.read_excel(excel_file, sheet_name=0)
+        return {
 
-        keyword_dict = defaultdict(set)
+            "IT : System Issue": {
+                "must_have": ["integration", "not flowing", "not reflecting", "error", "failure"],
+                "exclude": ["how to", "clarification"]
+            },
 
-        for _, row in df.iterrows():
+            "IT : Access": {
+                "must_have": ["access", "login", "permission", "authorization"],
+                "exclude": []
+            },
 
-            raw_issue = str(row.get("Issue", "")).strip()
+            "IT : Master Data": {
+                "must_have": ["system master data", "backend master", "data load failed"],
+                "exclude": []
+            },
 
-            combined_text = " ".join([
-                str(row.get("Description", "")),
-                str(row.get("Issue Description", "")),
-                str(row.get("Unnamed: 5", ""))
-            ])
+            "User : Mappings Missing": {
+                "must_have": ["mapping", "not mapped", "missing mapping"],
+                "exclude": []
+            },
 
-            combined_text = self._clean(combined_text)
+            "User : Master Data": {
+                "must_have": ["rate missing", "material not visible", "bulk rate", "new material"],
+                "exclude": []
+            },
 
-            words = [
-                w for w in combined_text.split()
-                if len(w) > 3
-            ]
+            "User : Business Logic Issue": {
+                "must_have": ["excel mismatch", "logic difference", "calculation wrong", "version issue"],
+                "exclude": []
+            },
 
-            final_category = self._map_category(raw_issue)
+            "Master Data Issue": {
+                "must_have": ["master data mismatch", "master data error"],
+                "exclude": []
+            },
 
-            keyword_dict[final_category].update(words)
-
-        return keyword_dict
-
-    # ----------------------------------
-    # Map Raw Excel Issue → Final 8 Categories
-    # ----------------------------------
-    def _map_category(self, raw_issue):
-
-        mapping = {
-            "System linkage issue": "IT : System Issue",
-            "System Access issue": "IT : Access",
-            "IT Masterdata issue": "IT : Master Data",
-            "Mapping missing from user": "User : Mappings Missing",
-            "Masterdata - delayed input from user": "User : Master Data",
-            "Logic mistakes in excel vs system": "User : Business Logic Issue",
-            "Multiple versions issue in excel": "User : Business Logic Issue",
-            "User knowledge gap": "User Awareness",
-            "User KT issue": "User Awareness",
-            "Master Data Issue": "Master Data Issue"
+            "User Awareness": {
+                "must_have": ["how to", "clarification", "cannot understand", "guidance"],
+                "exclude": []
+            }
         }
-
-        return mapping.get(raw_issue, "User Awareness")
 
     # ----------------------------------
     # Categorize
@@ -77,27 +71,17 @@ class CategorizationLogic:
 
         text = self._clean(text)
 
-        scores = {}
+        for category, conditions in self.rules.items():
 
-        for category, keywords in self.category_keywords.items():
+            must_have = conditions["must_have"]
+            exclude = conditions["exclude"]
 
-            match_count = sum(
-                1 for word in keywords if word in text
-            )
+            # Check must-have keywords
+            if any(keyword in text for keyword in must_have):
 
-            scores[category] = match_count
+                # Check exclusion
+                if not any(ex in text for ex in exclude):
+                    return category, 0.9
 
-        # Remove fallback category temporarily
-        fallback_score = scores.get("User Awareness", 0)
-        scores.pop("User Awareness", None)
-
-        # Pick highest scoring non-fallback category
-        best_category = max(scores, key=scores.get)
-        best_score = scores[best_category]
-
-        if best_score >= 2:
-            confidence = min(best_score / 10, 1.0)
-            return best_category, round(confidence, 3)
-
-        # If nothing meaningful matched → fallback
+        # Final fallback
         return "User Awareness", 0.5
