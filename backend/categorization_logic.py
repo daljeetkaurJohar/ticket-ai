@@ -32,6 +32,7 @@ class CategorizationLogic:
 
         for sheet in sheets:
 
+            # Skip Sheet1 (rule definition sheet)
             if sheet.lower() == "sheet1":
                 continue
 
@@ -63,13 +64,14 @@ class CategorizationLogic:
         return pd.DataFrame(rows)
 
     # ---------------------------------
-    # Build TF-IDF vector engine
+    # Build TF-IDF engine
     # ---------------------------------
     def _build_vector_engine(self):
 
         self.vectorizer = TfidfVectorizer(
             stop_words="english",
-            ngram_range=(1, 2)
+            ngram_range=(1, 2),
+            min_df=1
         )
 
         self.training_vectors = self.vectorizer.fit_transform(
@@ -77,7 +79,7 @@ class CategorizationLogic:
         )
 
     # ---------------------------------
-    # Categorize using nearest similarity
+    # Categorize using Top-K Voting
     # ---------------------------------
     def categorize(self, text):
 
@@ -90,12 +92,35 @@ class CategorizationLogic:
             self.training_vectors
         )[0]
 
-        best_index = similarities.argmax()
-        best_score = similarities[best_index]
+        # Take top 10 similar tickets
+        TOP_K = 10
+        top_indices = similarities.argsort()[-TOP_K:]
 
-        if best_score < 0.1:
+        issue_scores = {}
+
+        for idx in top_indices:
+
+            issue = self.training_df.iloc[idx]["issue"]
+            score = similarities[idx]
+
+            if issue not in issue_scores:
+                issue_scores[issue] = 0
+
+            issue_scores[issue] += score
+
+        # Normalize by category size (reduces dominance)
+        for issue in issue_scores:
+            category_count = len(
+                self.training_df[self.training_df["issue"] == issue]
+            )
+            issue_scores[issue] /= category_count
+
+        # Select best category
+        best_issue = max(issue_scores, key=issue_scores.get)
+        best_score = issue_scores[best_issue]
+
+        # Weak similarity fallback
+        if best_score < 0.05:
             return "User Awareness", round(float(best_score), 3)
-
-        best_issue = self.training_df.iloc[best_index]["issue"]
 
         return best_issue, round(float(best_score), 3)
