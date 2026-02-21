@@ -18,55 +18,71 @@ class CategorizationLogic:
         self._build_vector_engine()
 
 
-    # ---------------------------------------------------
-    # Load historical tickets from ALL sheets except Sheet1
-    # ---------------------------------------------------
     def _load_historical_data(self, excel_file):
 
-        xls = pd.ExcelFile(excel_file)
-        all_data = []
+    xls = pd.ExcelFile(excel_file)
+    all_data = []
 
-        for sheet in xls.sheet_names:
+    for sheet in xls.sheet_names:
 
-            if sheet.lower() == "sheet1":
-                continue  # Skip rule sheet
+        if sheet.lower() == "sheet1":
+            continue
 
-            df = pd.read_excel(xls, sheet)
+        df = pd.read_excel(xls, sheet)
 
-            required_cols = [
-                "Ticket Description",
-                "Summary",
-                "Work notes",
-                "Category"
-            ]
+        # -----------------------------
+        # Detect category column safely
+        # -----------------------------
+        category_col = None
 
-            for col in required_cols:
-                if col not in df.columns:
-                    continue
+        for col in df.columns:
+            if "category" in col.lower():
+                category_col = col
+                break
 
-            df = df.dropna(subset=["Category"])
+        if category_col is None:
+            continue  # skip sheet if no category column
 
-            df["combined_text"] = (
-                df.get("Ticket Description", "").astype(str) + " " +
-                df.get("Summary", "").astype(str) + " " +
-                df.get("Work notes", "").astype(str)
-            )
+        # -----------------------------
+        # Detect text columns safely
+        # -----------------------------
+        desc_col = None
+        summary_col = None
+        notes_col = None
 
-            df["combined_text"] = df["combined_text"].apply(self._clean_text)
+        for col in df.columns:
+            if "description" in col.lower():
+                desc_col = col
+            if "summary" in col.lower():
+                summary_col = col
+            if "work" in col.lower():
+                notes_col = col
 
-            all_data.append(
-                df[["combined_text", "Category"]]
-            )
+        df = df.dropna(subset=[category_col])
 
-        if len(all_data) == 0:
-            return pd.DataFrame()
+        df["combined_text"] = (
+            df.get(desc_col, "").astype(str) + " " +
+            df.get(summary_col, "").astype(str) + " " +
+            df.get(notes_col, "").astype(str)
+        )
 
-        final_df = pd.concat(all_data, ignore_index=True)
+        df["combined_text"] = df["combined_text"].apply(self._clean_text)
 
-        final_df = final_df.rename(columns={"combined_text": "text"})
+        df = df[[ "combined_text", category_col ]]
 
-        return final_df
+        df = df.rename(columns={
+            "combined_text": "text",
+            category_col: "Category"
+        })
 
+        all_data.append(df)
+
+    if len(all_data) == 0:
+        return pd.DataFrame()
+
+    final_df = pd.concat(all_data, ignore_index=True)
+
+    return final_df
 
     # ---------------------------------------------------
     # Clean text
