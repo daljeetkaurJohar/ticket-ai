@@ -9,7 +9,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 class CategorizationLogic:
 
     def __init__(self, excel_file):
-        self.issue_text_map = self._build_issue_text_map(excel_file)
+        self.rules_df = self._load_all_rows(excel_file)
         self._build_vector_engine()
 
     # -----------------------------
@@ -21,16 +21,14 @@ class CategorizationLogic:
         return text
 
     # -----------------------------
-    # Build issue cluster texts
+    # Load ALL rows from ALL sheets
     # -----------------------------
-    def _build_issue_text_map(self, excel_file):
+    def _load_all_rows(self, excel_file):
 
         xls = pd.ExcelFile(excel_file)
-        sheets = xls.sheet_names
+        rows = []
 
-        issue_map = {}
-
-        for sheet in sheets:
+        for sheet in xls.sheet_names:
             df = pd.read_excel(xls, sheet)
 
             if "Issue" not in df.columns:
@@ -40,32 +38,27 @@ class CategorizationLogic:
 
                 issue = str(row.get("Issue", "")).strip()
 
-                combined_text = " ".join([
+                text = " ".join([
                     str(row.get("Description", "")),
                     str(row.get("Issue Description", "")),
                     str(row.get("Remarks", "")),
                     str(row.get("Unnamed: 5", ""))
                 ])
 
-                combined_text = self._clean(combined_text)
+                text = self._clean(text)
 
-                if not issue:
-                    continue
+                if issue and text.strip():
+                    rows.append({
+                        "issue": issue,
+                        "text": text
+                    })
 
-                if issue not in issue_map:
-                    issue_map[issue] = ""
-
-                issue_map[issue] += " " + combined_text
-
-        return issue_map
+        return pd.DataFrame(rows)
 
     # -----------------------------
-    # Build TF-IDF engine
+    # Build TF-IDF on EACH ROW
     # -----------------------------
     def _build_vector_engine(self):
-
-        self.issues = list(self.issue_text_map.keys())
-        corpus = [self.issue_text_map[i] for i in self.issues]
 
         self.vectorizer = TfidfVectorizer(
             stop_words="english",
@@ -73,7 +66,9 @@ class CategorizationLogic:
             min_df=1
         )
 
-        self.issue_vectors = self.vectorizer.fit_transform(corpus)
+        self.row_vectors = self.vectorizer.fit_transform(
+            self.rules_df["text"]
+        )
 
     # -----------------------------
     # Categorize
@@ -84,12 +79,17 @@ class CategorizationLogic:
 
         text_vector = self.vectorizer.transform([text])
 
-        similarities = cosine_similarity(text_vector, self.issue_vectors)[0]
+        similarities = cosine_similarity(
+            text_vector,
+            self.row_vectors
+        )[0]
 
-        best_index = similarities.argmax()
-        best_score = similarities[best_index]
+        best_row_index = similarities.argmax()
+        best_score = similarities[best_row_index]
 
         if best_score < 0.05:
             return "Needs Manual Review", round(float(best_score), 3)
 
-        return self.issues[best_index], round(float(best_score), 3)
+        best_issue = self.rules_df.iloc[best_row_index]["issue"]
+
+        return best_issue, round(float(best_score), 3)
