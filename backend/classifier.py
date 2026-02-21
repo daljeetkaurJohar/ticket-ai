@@ -16,8 +16,11 @@ def predict_ticket(text: str):
 
     category, confidence = logic.categorize(text)
 
+    print("TEXT:", text[:80])
+    print("PREDICTED:", category, "CONF:", confidence)
+
     return {
         "category": category,
         "confidence": confidence,
-        "source": "Balanced Text Classifier"
+        "source": "ML Classifier"
     }
