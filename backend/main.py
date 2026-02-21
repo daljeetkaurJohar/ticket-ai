@@ -1,43 +1,26 @@
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, UploadFile
 import pandas as pd
-from uuid import uuid4
-from io import BytesIO
-from database import db
-from worker import process_batch
-import os
+from classifier import categorize_ticket
 
 app = FastAPI()
 
-@app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    if not file.filename.endswith(".xlsx"):
-        return {"error": "Only Excel allowed"}
+@app.post("/categorize/")
+async def categorize(file: UploadFile):
 
-    content = await file.read()
-    df = pd.read_excel(BytesIO(content))
+    df = pd.read_excel(file.file)
 
-    batch_id = str(uuid4())
+    results = []
 
-    await db.batches.insert_one({
-        "batch_id": batch_id,
-        "filename": file.filename,
-        "status": "processing"
-    })
-
-    tickets = []
     for _, row in df.iterrows():
-        tickets.append({
-            "batch_id": batch_id,
-            "description": str(row["Description"]),
-            "classified": False
-        })
+        category = categorize_ticket(
+            row.get("Short Description", ""),
+            row.get("Description", "")
+        )
+        results.append(category)
 
-    if tickets:
-        await db.tickets.insert_many(tickets)
+    df["Predicted Issue Category"] = results
 
-    return {"batch_id": batch_id}
-@app.post("/classify/{batch_id}")
-async def classify(batch_id: str, background_tasks: BackgroundTasks):
-    background_tasks.add_task(process_batch, batch_id)
-    return {"message": "Classification started"}
+    output_path = "categorized_output.xlsx"
+    df.to_excel(output_path, index=False)
+
+    return {"message": "Categorization completed"}
