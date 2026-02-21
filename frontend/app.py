@@ -1,141 +1,110 @@
+# frontend/app.py
+
 import streamlit as st
 import pandas as pd
-import torch
-import torch.nn.functional as F
-import joblib
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import sys
+import os
 
-# -----------------------------
-# Load Model (cached)
-# -----------------------------
-@st.cache_resource
-def load_model():
-    tokenizer = AutoTokenizer.from_pretrained("model")
-    model = AutoModelForSequenceClassification.from_pretrained("model")
-    label_encoder = joblib.load("label_encoder.pkl")
-    model.eval()
-    return tokenizer, model, label_encoder
+# Add backend folder to path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend')))
 
-tokenizer, model, label_encoder = load_model()
+from classifier import predict_ticket
 
-# -----------------------------
-# Rule Dictionary
-# -----------------------------
-RULES = {
-    "System linkage issue": [
-        "not flowing", "not reflecting", "not appearing",
-        "unable to pull", "integration", "not pushed",
-        "version movement", "integrated version"
-    ],
-    "Mapping missing from user": [
-        "not mapped", "mapping not done"
-    ],
-    "Multiple versions issue in excel": [
-        "excel version", "difference in excel",
-        "rate difference"
-    ],
-    "Masterdata - delayed input from user": [
-        "rate missing", "material not visible",
-        "bulk rate", "new scheme addition"
-    ],
-    "User knowledge gap": [
-        "how to", "cannot see", "not visible"
-    ]
-}
+# ----------------------------------
+# Streamlit Page Config
+# ----------------------------------
+st.set_page_config(
+    page_title="Enterprise Ticket Classification System",
+    layout="wide"
+)
 
-CONFIDENCE_THRESHOLD = 0.65
-
-# -----------------------------
-# Rule Classification
-# -----------------------------
-def rule_based(text):
-    text = text.lower()
-    for category, keywords in RULES.items():
-        for kw in keywords:
-            if kw in text:
-                return category, 0.95, "Rule"
-    return None, None, None
-
-# -----------------------------
-# ML Classification
-# -----------------------------
-def ml_predict(text):
-    inputs = tokenizer(
-        text,
-        return_tensors="pt",
-        truncation=True,
-        padding=True,
-        max_length=256
-    )
-
-    with torch.no_grad():
-        outputs = model(**inputs)
-
-    probs = F.softmax(outputs.logits, dim=1)
-    pred = torch.argmax(probs, dim=1).item()
-    confidence = probs[0][pred].item()
-    label = label_encoder.inverse_transform([pred])[0]
-
-    return label, confidence, "ML"
-
-# -----------------------------
-# Hybrid Classification
-# -----------------------------
-def classify(text):
-
-    # Rule First
-    rule_cat, rule_conf, rule_src = rule_based(text)
-    if rule_cat:
-        return rule_cat, rule_conf, rule_src
-
-    # ML Fallback
-    ml_cat, ml_conf, ml_src = ml_predict(text)
-
-    if ml_conf >= CONFIDENCE_THRESHOLD:
-        return ml_cat, round(ml_conf, 3), ml_src
-
-    return "Needs Manual Review", round(ml_conf, 3), "Review"
-
-# -----------------------------
-# Streamlit UI
-# -----------------------------
 st.title("📊 Enterprise Ticket Classification System")
+st.markdown("Upload your ticket Excel file for automatic categorization.")
 
+# ----------------------------------
+# File Upload
+# ----------------------------------
 uploaded_file = st.file_uploader("Upload Incident Excel File", type=["xlsx"])
 
 if uploaded_file:
 
     df = pd.read_excel(uploaded_file)
 
+    if df.empty:
+        st.warning("Uploaded file is empty.")
+        st.stop()
+
     predictions = []
     confidences = []
     sources = []
 
-    for _, row in df.iterrows():
+    progress_bar = st.progress(0)
+    total_rows = len(df)
 
+    for i, (_, row) in enumerate(df.iterrows()):
+
+        # Combine relevant fields safely
         text = " ".join([
             str(row.get("Issue", "")),
             str(row.get("Description", "")),
             str(row.get("Remarks", "")),
-            str(row.get("Ticket Description", ""))
+            str(row.get("Ticket Description", "")),
+            str(row.get("Ticket Summary", "")),
+            str(row.get("Ticket Details", ""))
         ])
 
-        cat, conf, src = classify(text)
+        result = predict_ticket(text)
 
-        predictions.append(cat)
-        confidences.append(conf)
-        sources.append(src)
+        predictions.append(result["category"])
+        confidences.append(result["confidence"])
+        sources.append(result["source"])
 
+        progress_bar.progress((i + 1) / total_rows)
+
+    # ----------------------------------
+    # Add Predictions to DataFrame
+    # ----------------------------------
     df["Predicted Category"] = predictions
     df["Confidence"] = confidences
     df["Classification Source"] = sources
 
-    st.success("Classification Complete")
+    st.success("✅ Classification Complete")
 
-    st.dataframe(df.head())
+    # ----------------------------------
+    # Dashboard Summary
+    # ----------------------------------
+    col1, col2, col3 = st.columns(3)
 
+    col1.metric("Total Tickets", len(df))
+    col2.metric("Unique Categories", df["Predicted Category"].nunique())
+    col3.metric("Avg Confidence", round(df["Confidence"].mean(), 3))
+
+    st.divider()
+
+    # ----------------------------------
+    # Show Data
+    # ----------------------------------
+    st.subheader("📋 Classified Tickets Preview")
+    st.dataframe(df.head(20), use_container_width=True)
+
+    # ----------------------------------
+    # Category Distribution Chart
+    # ----------------------------------
+    st.subheader("📊 Category Distribution")
+
+    category_counts = df["Predicted Category"].value_counts()
+    st.bar_chart(category_counts)
+
+    # ----------------------------------
+    # Download Option
+    # ----------------------------------
     output_file = "classified_output.xlsx"
     df.to_excel(output_file, index=False)
 
     with open(output_file, "rb") as f:
-        st.download_button("Download Classified File", f, file_name=output_file)
+        st.download_button(
+            label="📥 Download Classified File",
+            data=f,
+            file_name=output_file,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
