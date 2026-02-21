@@ -17,7 +17,9 @@ class CategorizationLogic:
         if len(self.training_df) == 0:
             raise ValueError("No valid historical training data found.")
 
-        print("\nTraining Data Loaded")
+        print("\n✅ Training Data Loaded Successfully")
+        print("Training Shape:", self.training_df.shape)
+        print("Category Distribution:")
         print(self.training_df["Category"].value_counts())
 
         self._build_model()
@@ -36,7 +38,7 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # LOAD TRAINING DATA
+    # LOAD TRAINING DATA SAFELY
     # ---------------------------------------------------
     def _load_historical_data(self, excel_file):
 
@@ -45,12 +47,17 @@ class CategorizationLogic:
 
         for sheet in xls.sheet_names:
 
+            print(f"Reading sheet: {sheet}")
+
             df = pd.read_excel(xls, sheet)
 
             if df.empty:
+                print(f"Skipping {sheet} — empty sheet")
                 continue
 
+            # Force category column = Issue
             if "Issue" not in df.columns:
+                print(f"Skipping {sheet} — no 'Issue' column found")
                 continue
 
             category_col = "Issue"
@@ -63,10 +70,19 @@ class CategorizationLogic:
             if df.empty:
                 continue
 
-            desc_series = df[desc_col].astype(str) if desc_col else ""
-            issue_desc_series = df[issue_desc_col].astype(str) if issue_desc_col else ""
+            # SAFE ROW-WISE TEXT BUILDING
+            def build_text(row):
+                parts = []
 
-            df["text"] = (desc_series + " " + issue_desc_series).apply(self._clean_text)
+                if desc_col:
+                    parts.append(str(row[desc_col]))
+
+                if issue_desc_col:
+                    parts.append(str(row[issue_desc_col]))
+
+                return self._clean_text(" ".join(parts))
+
+            df["text"] = df.apply(build_text, axis=1)
 
             df = df[["text", category_col]]
             df = df.rename(columns={category_col: "Category"})
@@ -80,7 +96,7 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # BUILD ML MODEL
+    # BUILD MACHINE LEARNING MODEL
     # ---------------------------------------------------
     def _build_model(self):
 
@@ -106,7 +122,7 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # PREDICT
+    # PREDICT CATEGORY
     # ---------------------------------------------------
     def categorize(self, text):
 
