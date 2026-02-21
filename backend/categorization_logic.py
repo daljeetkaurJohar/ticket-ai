@@ -2,16 +2,15 @@
 
 import pandas as pd
 import re
-import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.linear_model import LogisticRegression
 
 
 class CategorizationLogic:
 
     def __init__(self, excel_file):
-        self.issue_texts = self._load_historical_data(excel_file)
-        self._build_centroid_model()
+        self._load_training_data(excel_file)
+        self._train_model()
 
     # ---------------------------------
     # Clean text
@@ -22,14 +21,15 @@ class CategorizationLogic:
         return text
 
     # ---------------------------------
-    # Load historical sheets (NOT Sheet1)
+    # Load historical training data
     # ---------------------------------
-    def _load_historical_data(self, excel_file):
+    def _load_training_data(self, excel_file):
 
         xls = pd.ExcelFile(excel_file)
         sheets = xls.sheet_names
 
-        issue_text_map = {}
+        texts = []
+        labels = []
 
         for sheet in sheets:
 
@@ -38,35 +38,28 @@ class CategorizationLogic:
 
             df = pd.read_excel(xls, sheet)
 
-            if "Issue" not in df.columns:
+            if "Ticket Description" not in df.columns:
+                continue
+
+            if "Issue category" not in df.columns:
                 continue
 
             for _, row in df.iterrows():
 
-                issue = str(row.get("Issue", "")).strip()
+                text = self._clean(row["Ticket Description"])
+                label = str(row["Issue category"]).strip()
 
-                text = " ".join(
-                    str(row[col]) for col in df.columns
-                )
+                if text and label:
+                    texts.append(text)
+                    labels.append(label)
 
-                text = self._clean(text)
-
-                if issue and text.strip():
-
-                    if issue not in issue_text_map:
-                        issue_text_map[issue] = []
-
-                    issue_text_map[issue].append(text)
-
-        if not issue_text_map:
-            raise ValueError("No historical data found.")
-
-        return issue_text_map
+        self.texts = texts
+        self.labels = labels
 
     # ---------------------------------
-    # Build centroid model
+    # Train classifier
     # ---------------------------------
-    def _build_centroid_model(self):
+    def _train_model(self):
 
         self.vectorizer = TfidfVectorizer(
             stop_words="english",
@@ -74,53 +67,26 @@ class CategorizationLogic:
             min_df=2
         )
 
-        # Flatten all texts
-        all_texts = []
-        issue_labels = []
+        X = self.vectorizer.fit_transform(self.texts)
 
-        for issue, texts in self.issue_texts.items():
-            for t in texts:
-                all_texts.append(t)
-                issue_labels.append(issue)
+        # Balanced class weight prevents User Awareness dominance
+        self.model = LogisticRegression(
+            max_iter=1000,
+            class_weight="balanced"
+        )
 
-        vectors = self.vectorizer.fit_transform(all_texts)
-
-        # Compute centroid per issue
-        self.issue_centroids = {}
-        self.issues = list(self.issue_texts.keys())
-
-        for issue in self.issues:
-            indices = [
-                i for i, label in enumerate(issue_labels)
-                if label == issue
-            ]
-            centroid = np.mean(vectors[indices].toarray(), axis=0)
-            self.issue_centroids[issue] = centroid
+        self.model.fit(X, self.labels)
 
     # ---------------------------------
-    # Categorize
+    # Categorize new ticket
     # ---------------------------------
     def categorize(self, text):
 
         text = self._clean(text)
 
-        text_vector = self.vectorizer.transform([text]).toarray()[0]
+        X_new = self.vectorizer.transform([text])
 
-        best_issue = None
-        best_score = 0
+        prediction = self.model.predict(X_new)[0]
+        prob = max(self.model.predict_proba(X_new)[0])
 
-        for issue, centroid in self.issue_centroids.items():
-
-            similarity = cosine_similarity(
-                [text_vector],
-                [centroid]
-            )[0][0]
-
-            if similarity > best_score:
-                best_score = similarity
-                best_issue = issue
-
-        if best_score < 0.05:
-            return "User Awareness", round(float(best_score), 3)
-
-        return best_issue, round(float(best_score), 3)
+        return prediction, round(float(prob), 3)
