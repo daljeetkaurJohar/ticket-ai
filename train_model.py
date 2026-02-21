@@ -16,7 +16,7 @@ import os
 # -----------------------------
 # Load Data
 # -----------------------------
-xls = pd.ExcelFile("data/issue_category.xlsx")
+xls = pd.ExcelFile("data/issue category.xlsx")
 
 df_list = []
 for sheet in xls.sheet_names:
