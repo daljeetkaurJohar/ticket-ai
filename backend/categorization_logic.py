@@ -13,83 +13,17 @@ class CategorizationLogic:
         self.training_df = self._load_historical_data(excel_file)
 
         if len(self.training_df) == 0:
-            raise ValueError("No training data found in issue category file.")
+            raise ValueError("No valid historical training data found.")
 
         self._build_vector_engine()
 
 
-    def _load_historical_data(self, excel_file):
-
-        xls = pd.ExcelFile(excel_file)
-        all_data = []
-
-        for sheet in xls.sheet_names:
-    
-            if sheet.lower() == "sheet1":
-                continue
-    
-            df = pd.read_excel(xls, sheet)
-    
-            # -----------------------------
-            # Detect category column safely
-            # -----------------------------
-            category_col = None
-    
-            for col in df.columns:
-                if "category" in col.lower():
-                    category_col = col
-                    break
-    
-            if category_col is None:
-                continue  # skip sheet if no category column
-    
-            # -----------------------------
-            # Detect text columns safely
-            # -----------------------------
-            desc_col = None
-            summary_col = None
-            notes_col = None
-    
-            for col in df.columns:
-                if "description" in col.lower():
-                    desc_col = col
-                if "summary" in col.lower():
-                    summary_col = col
-                if "work" in col.lower():
-                    notes_col = col
-    
-            df = df.dropna(subset=[category_col])
-    
-            df["combined_text"] = (
-                df.get(desc_col, "").astype(str) + " " +
-                df.get(summary_col, "").astype(str) + " " +
-                df.get(notes_col, "").astype(str)
-            )
-    
-            df["combined_text"] = df["combined_text"].apply(self._clean_text)
-    
-            df = df[[ "combined_text", category_col ]]
-    
-            df = df.rename(columns={
-                "combined_text": "text",
-                category_col: "Category"
-            })
-    
-            all_data.append(df)
-    
-        if len(all_data) == 0:
-            return pd.DataFrame()
-    
-        final_df = pd.concat(all_data, ignore_index=True)
-    
-        return final_df
-
     # ---------------------------------------------------
-    # Clean text
+    # CLEAN TEXT
     # ---------------------------------------------------
     def _clean_text(self, text):
 
-        text = text.lower()
+        text = str(text).lower()
         text = re.sub(r"[^a-zA-Z0-9 ]", " ", text)
         text = re.sub(r"\s+", " ", text)
 
@@ -97,7 +31,95 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # Build Vector Engine
+    # LOAD HISTORICAL DATA FROM ALL SHEETS
+    # ---------------------------------------------------
+    def _load_historical_data(self, excel_file):
+
+        xls = pd.ExcelFile(excel_file)
+        all_data = []
+
+        for sheet in xls.sheet_names:
+
+            # Skip rule sheet
+            if sheet.lower() == "sheet1":
+                continue
+
+            df = pd.read_excel(xls, sheet)
+
+            if df.empty:
+                continue
+
+            # -----------------------------------
+            # Detect Category Column Automatically
+            # -----------------------------------
+            category_col = None
+            for col in df.columns:
+                if "category" in col.lower():
+                    category_col = col
+                    break
+
+            if category_col is None:
+                continue  # skip sheet if no category column
+
+            # -----------------------------------
+            # Detect Text Columns Automatically
+            # -----------------------------------
+            desc_col = None
+            summary_col = None
+            notes_col = None
+
+            for col in df.columns:
+                col_lower = col.lower()
+
+                if "description" in col_lower:
+                    desc_col = col
+
+                if "summary" in col_lower:
+                    summary_col = col
+
+                if "work" in col_lower:
+                    notes_col = col
+
+            # Drop rows without category
+            df = df.dropna(subset=[category_col])
+
+            if df.empty:
+                continue
+
+            # -----------------------------------
+            # SAFE TEXT BUILDING (NO .astype ERROR)
+            # -----------------------------------
+            desc_series = df[desc_col].astype(str) if desc_col and desc_col in df.columns else ""
+            summary_series = df[summary_col].astype(str) if summary_col and summary_col in df.columns else ""
+            notes_series = df[notes_col].astype(str) if notes_col and notes_col in df.columns else ""
+
+            df["combined_text"] = (
+                desc_series + " " +
+                summary_series + " " +
+                notes_series
+            )
+
+            df["combined_text"] = df["combined_text"].apply(self._clean_text)
+
+            df = df[["combined_text", category_col]]
+
+            df = df.rename(columns={
+                "combined_text": "text",
+                category_col: "Category"
+            })
+
+            all_data.append(df)
+
+        if len(all_data) == 0:
+            return pd.DataFrame()
+
+        final_df = pd.concat(all_data, ignore_index=True)
+
+        return final_df
+
+
+    # ---------------------------------------------------
+    # BUILD VECTOR ENGINE
     # ---------------------------------------------------
     def _build_vector_engine(self):
 
@@ -113,7 +135,7 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # Categorize New Ticket
+    # CATEGORIZE NEW TICKET
     # ---------------------------------------------------
     def categorize(self, text):
 
