@@ -11,5 +11,5 @@ def predict_ticket(text: str):
     return {
         "category": category,
         "confidence": confidence,
-        "source": "Top-K Similarity Engine"
+        "source": "Balanced Text Classifier"
     }
