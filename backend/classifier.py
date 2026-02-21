@@ -1,64 +1,52 @@
 import pandas as pd
 import re
 from sentence_transformers import SentenceTransformer, util
+import torch
 
-# Load model once
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-# -----------------------------
-# Load Issue Category Excel
-# -----------------------------
-def load_category_logic():
-    xls = pd.ExcelFile("data/issue category.xlsx")
+def clean_text(text):
+    if pd.isna(text):
+        return ""
+    return re.sub(r'[^a-zA-Z0-9 ]', '', str(text).lower())
+
+# Load training examples from issue category.xlsx
+def load_training_data():
+    xls = pd.ExcelFile("data/issue_category.xlsx")
     df_list = []
 
     for sheet in xls.sheet_names:
         temp = pd.read_excel(xls, sheet)
         df_list.append(temp)
 
-    category_df = pd.concat(df_list, ignore_index=True)
-    return category_df
+    df = pd.concat(df_list, ignore_index=True)
 
-category_df = load_category_logic()
+    df["combined_text"] = (
+        df["Short Description"].astype(str) + " " +
+        df["Description"].astype(str)
+    ).apply(clean_text)
 
-# -----------------------------
-# Clean Text
-# -----------------------------
-def clean_text(text):
-    if pd.isna(text):
-        return ""
-    text = str(text).lower()
-    text = re.sub(r'[^a-zA-Z0-9 ]', '', text)
-    return text
+    return df
 
-# -----------------------------
-# Categorize Ticket
-# -----------------------------
+training_df = load_training_data()
+
+# Precompute embeddings ONCE
+training_embeddings = model.encode(
+    training_df["combined_text"].tolist(),
+    convert_to_tensor=True
+)
+
 def categorize_ticket(short_desc, desc):
 
     ticket_text = clean_text(short_desc + " " + desc)
     ticket_embedding = model.encode(ticket_text, convert_to_tensor=True)
 
-    best_score = -1
-    best_category = "Uncategorized"
+    cosine_scores = util.pytorch_cos_sim(ticket_embedding, training_embeddings)[0]
 
-    for _, row in category_df.iterrows():
+    best_match_idx = torch.argmax(cosine_scores).item()
 
-        category_name = row["Issue"]
+    predicted_category = training_df.iloc[best_match_idx]["Issue"]
 
-        combined_text = (
-            str(row.get("Definition", "")) + " " +
-            str(row.get("Symptoms", "")) + " " +
-            str(row.get("Causes", ""))
-        )
+    confidence = float(cosine_scores[best_match_idx])
 
-        combined_clean = clean_text(combined_text)
-        category_embedding = model.encode(combined_clean, convert_to_tensor=True)
-
-        score = util.pytorch_cos_sim(ticket_embedding, category_embedding).item()
-
-        if score > best_score:
-            best_score = score
-            best_category = category_name
-
-    return best_category
+    return predicted_category, round(confidence, 3)
