@@ -2,7 +2,7 @@
 
 from categorization_logic import CategorizationLogic
 
-logic = CategorizationLogic("data/issue category.xlsx")
+logic = CategorizationLogic()
 
 def predict_ticket(text: str):
 
@@ -11,5 +11,5 @@ def predict_ticket(text: str):
     return {
         "category": category,
         "confidence": confidence,
-        "source": "TF-IDF Reference Engine"
+        "source": "Deterministic Rule Engine"
     }
