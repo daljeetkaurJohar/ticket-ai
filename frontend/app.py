@@ -64,17 +64,29 @@ if uploaded_file:
     df["Predicted Category"] = predictions
     df["Confidence"] = confidences
 
-
     # ---------------------------------------------------
-    # Refined Executive Summary
+    # Refined Executive Summary (2-Line Version)
     # ---------------------------------------------------
     def refine_summary(row):
-
-        desc = str(row.get("Ticket Description", ""))
-        summary = str(row.get("Summary", ""))
-        notes = str(row.get("Work notes", ""))
-
-        refined = f"""
+    
+        desc = str(row.get("Ticket Description", "")).strip()
+        summary = str(row.get("Summary", "")).strip()
+        notes = str(row.get("Work notes", "")).strip()
+        category = str(row.get("Predicted Category", "")).strip()
+    
+        # Combine context
+        combined = " ".join([desc, summary, notes]).strip()
+    
+        if not combined:
+            return f"{category} reported.\nFurther investigation required."
+    
+        # Shorten to meaningful 2 lines
+        short_text = combined[:250]  # avoid too long text
+    
+        line1 = f"{category} identified impacting operations."
+        line2 = short_text
+    
+        return f"{line1}\n{line2}"
 Problem Statement:
 {desc.strip()}
 
