@@ -7,24 +7,25 @@ import re
 class CategorizationLogic:
 
     def __init__(self, excel_file):
-        self.rules = self._extract_rules(excel_file)
+        self.rules = self._build_rules(excel_file)
+        self.category_mapping = self._build_category_mapping()
 
-    # -----------------------------
+    # -----------------------------------
     # Clean Text
-    # -----------------------------
+    # -----------------------------------
     def _clean(self, text):
         text = str(text).lower()
         text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text)
         return text
 
-    # -----------------------------
-    # Extract structured rules
-    # -----------------------------
-    def _extract_rules(self, excel_file):
+    # -----------------------------------
+    # Load rules row-by-row
+    # -----------------------------------
+    def _build_rules(self, excel_file):
 
         df = pd.read_excel(excel_file, sheet_name=0)
 
-        rule_dict = {}
+        rules = []
 
         for _, row in df.iterrows():
 
@@ -38,50 +39,54 @@ class CategorizationLogic:
 
             rule_text = self._clean(rule_text)
 
-            keywords = [
-                word.strip()
-                for word in rule_text.split()
-                if len(word) > 3
-            ]
+            if issue and rule_text.strip():
+                rules.append({
+                    "issue": issue,
+                    "rule_text": rule_text
+                })
 
-            if issue not in rule_dict:
-                rule_dict[issue] = set()
+        return rules
 
-            rule_dict[issue].update(keywords)
+    # -----------------------------------
+    # Mapping to FINAL 8 categories
+    # -----------------------------------
+    def _build_category_mapping(self):
 
-        return rule_dict
+        return {
+            # IT related
+            "System linkage issue": "IT : System Issue",
+            "System Access issue": "IT : Access",
+            "IT Masterdata issue": "IT : Master Data",
 
-    # -----------------------------
-    # Deterministic Categorization
-    # -----------------------------
+            # User related
+            "User knowledge gap": "User Awareness",
+            "Mapping missing from user": "User : Mappings Missing",
+            "Masterdata - delayed input from user": "User : Master Data",
+            "Logic mistakes in excel vs system": "User : Business Logic Issue",
+            "Multiple versions issue in excel": "User : Business Logic Issue",
+
+            # Generic master data
+            "Master Data Issue": "Master Data Issue",
+            "User KT issue": "User Awareness"
+        }
+
+    # -----------------------------------
+    # Categorize
+    # -----------------------------------
     def categorize(self, text):
 
         text = self._clean(text)
 
-        # PRIORITY ORDER
-        priority_order = [
-            "System linkage issue",
-            "Mapping missing from user",
-            "Multiple versions issue in excel",
-            "Masterdata - delayed input from user",
-            "Logic mistakes in excel vs system",
-            "System Access issue",
-            "User KT issue",
-            "User knowledge gap"
-        ]
+        for rule in self.rules:
 
-        for category in priority_order:
+            if rule["rule_text"] in text:
+                raw_issue = rule["issue"]
 
-            if category not in self.rules:
-                continue
+                final_category = self.category_mapping.get(
+                    raw_issue,
+                    "User Awareness"
+                )
 
-            keywords = self.rules[category]
+                return final_category, 0.95
 
-            # Must match at least 2 keywords
-            matches = sum(1 for word in keywords if word in text)
-
-            if matches >= 2:
-                confidence = min(matches / 5, 1.0)
-                return category, round(confidence, 3)
-
-        return "Needs Manual Review", 0.0
+        return "User Awareness", 0.5
