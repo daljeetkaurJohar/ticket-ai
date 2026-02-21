@@ -41,9 +41,16 @@ if uploaded_file:
 
     for _, row in df.iterrows():
 
-        text = str(row.get("Ticket Description", ""))
+            text = " ".join([
+                str(row.get("Ticket Description", "")),
+                str(row.get("Summary", "")),
+                str(row.get("Work notes", "")),
+                str(row.get("Remarks", "")),
+                str(row.get("Ticket Summary", "")),
+                str(row.get("Ticket Details", ""))
+            ])
 
-        result = predict_ticket(text)
+            result = predict_ticket(text)
 
         predictions.append(result["category"])
         confidences.append(result["confidence"])
