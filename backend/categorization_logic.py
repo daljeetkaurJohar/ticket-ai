@@ -3,14 +3,14 @@
 import pandas as pd
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 class CategorizationLogic:
 
     def __init__(self, excel_file):
-        self._load_training_data(excel_file)
-        self._train_model()
+        self.issue_corpus = self._build_category_corpus(excel_file)
+        self._build_vector_model()
 
     # ---------------------------------
     # Clean text
@@ -21,15 +21,14 @@ class CategorizationLogic:
         return text
 
     # ---------------------------------
-    # Load historical training data
+    # Club all ticket descriptions per category
     # ---------------------------------
-    def _load_training_data(self, excel_file):
+    def _build_category_corpus(self, excel_file):
 
         xls = pd.ExcelFile(excel_file)
         sheets = xls.sheet_names
 
-        texts = []
-        labels = []
+        category_text = {}
 
         for sheet in sheets:
 
@@ -46,20 +45,26 @@ class CategorizationLogic:
 
             for _, row in df.iterrows():
 
+                category = str(row["Issue category"]).strip()
                 text = self._clean(row["Ticket Description"])
-                label = str(row["Issue category"]).strip()
 
-                if text and label:
-                    texts.append(text)
-                    labels.append(label)
+                if category not in category_text:
+                    category_text[category] = ""
 
-        self.texts = texts
-        self.labels = labels
+                category_text[category] += " " + text
+
+        if not category_text:
+            raise ValueError("No historical ticket data found.")
+
+        return category_text
 
     # ---------------------------------
-    # Train classifier
+    # Build TF-IDF vectors per category
     # ---------------------------------
-    def _train_model(self):
+    def _build_vector_model(self):
+
+        self.categories = list(self.issue_corpus.keys())
+        corpus = [self.issue_corpus[cat] for cat in self.categories]
 
         self.vectorizer = TfidfVectorizer(
             stop_words="english",
@@ -67,15 +72,7 @@ class CategorizationLogic:
             min_df=2
         )
 
-        X = self.vectorizer.fit_transform(self.texts)
-
-        # Balanced class weight prevents User Awareness dominance
-        self.model = LogisticRegression(
-            max_iter=1000,
-            class_weight="balanced"
-        )
-
-        self.model.fit(X, self.labels)
+        self.category_vectors = self.vectorizer.fit_transform(corpus)
 
     # ---------------------------------
     # Categorize new ticket
@@ -84,9 +81,15 @@ class CategorizationLogic:
 
         text = self._clean(text)
 
-        X_new = self.vectorizer.transform([text])
+        new_vector = self.vectorizer.transform([text])
 
-        prediction = self.model.predict(X_new)[0]
-        prob = max(self.model.predict_proba(X_new)[0])
+        similarities = cosine_similarity(
+            new_vector,
+            self.category_vectors
+        )[0]
 
-        return prediction, round(float(prob), 3)
+        best_index = similarities.argmax()
+        best_score = similarities[best_index]
+        best_category = self.categories[best_index]
+
+        return best_category, round(float(best_score), 3)
