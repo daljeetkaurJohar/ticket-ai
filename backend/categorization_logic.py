@@ -2,6 +2,7 @@
 
 import pandas as pd
 import re
+import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -9,8 +10,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 class CategorizationLogic:
 
     def __init__(self, excel_file):
-        self.training_df = self._load_historical_data(excel_file)
-        self._build_vector_engine()
+        self.issue_texts = self._load_historical_data(excel_file)
+        self._build_centroid_model()
 
     # ---------------------------------
     # Clean text
@@ -28,11 +29,10 @@ class CategorizationLogic:
         xls = pd.ExcelFile(excel_file)
         sheets = xls.sheet_names
 
-        rows = []
+        issue_text_map = {}
 
         for sheet in sheets:
 
-            # Skip Sheet1 (rule definition sheet)
             if sheet.lower() == "sheet1":
                 continue
 
@@ -45,81 +45,81 @@ class CategorizationLogic:
 
                 issue = str(row.get("Issue", "")).strip()
 
-                # Combine ALL columns dynamically
-                text = " ".join([
+                text = " ".join(
                     str(row[col]) for col in df.columns
-                ])
+                )
 
                 text = self._clean(text)
 
                 if issue and text.strip():
-                    rows.append({
-                        "issue": issue,
-                        "text": text
-                    })
 
-        if not rows:
-            raise ValueError("No historical training data loaded.")
+                    if issue not in issue_text_map:
+                        issue_text_map[issue] = []
 
-        return pd.DataFrame(rows)
+                    issue_text_map[issue].append(text)
+
+        if not issue_text_map:
+            raise ValueError("No historical data found.")
+
+        return issue_text_map
 
     # ---------------------------------
-    # Build TF-IDF engine
+    # Build centroid model
     # ---------------------------------
-    def _build_vector_engine(self):
+    def _build_centroid_model(self):
 
         self.vectorizer = TfidfVectorizer(
             stop_words="english",
             ngram_range=(1, 2),
-            min_df=1
+            min_df=2
         )
 
-        self.training_vectors = self.vectorizer.fit_transform(
-            self.training_df["text"]
-        )
+        # Flatten all texts
+        all_texts = []
+        issue_labels = []
+
+        for issue, texts in self.issue_texts.items():
+            for t in texts:
+                all_texts.append(t)
+                issue_labels.append(issue)
+
+        vectors = self.vectorizer.fit_transform(all_texts)
+
+        # Compute centroid per issue
+        self.issue_centroids = {}
+        self.issues = list(self.issue_texts.keys())
+
+        for issue in self.issues:
+            indices = [
+                i for i, label in enumerate(issue_labels)
+                if label == issue
+            ]
+            centroid = np.mean(vectors[indices].toarray(), axis=0)
+            self.issue_centroids[issue] = centroid
 
     # ---------------------------------
-    # Categorize using Top-K Voting
+    # Categorize
     # ---------------------------------
     def categorize(self, text):
 
         text = self._clean(text)
 
-        text_vector = self.vectorizer.transform([text])
+        text_vector = self.vectorizer.transform([text]).toarray()[0]
 
-        similarities = cosine_similarity(
-            text_vector,
-            self.training_vectors
-        )[0]
+        best_issue = None
+        best_score = 0
 
-        # Take top 10 similar tickets
-        TOP_K = 10
-        top_indices = similarities.argsort()[-TOP_K:]
+        for issue, centroid in self.issue_centroids.items():
 
-        issue_scores = {}
+            similarity = cosine_similarity(
+                [text_vector],
+                [centroid]
+            )[0][0]
 
-        for idx in top_indices:
+            if similarity > best_score:
+                best_score = similarity
+                best_issue = issue
 
-            issue = self.training_df.iloc[idx]["issue"]
-            score = similarities[idx]
-
-            if issue not in issue_scores:
-                issue_scores[issue] = 0
-
-            issue_scores[issue] += score
-
-        # Normalize by category size (reduces dominance)
-        for issue in issue_scores:
-            category_count = len(
-                self.training_df[self.training_df["issue"] == issue]
-            )
-            issue_scores[issue] /= category_count
-
-        # Select best category
-        best_issue = max(issue_scores, key=issue_scores.get)
-        best_score = issue_scores[best_issue]
-
-        # Weak similarity fallback
         if best_score < 0.05:
             return "User Awareness", round(float(best_score), 3)
 
