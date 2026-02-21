@@ -1,22 +1,18 @@
 import torch
 import joblib
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch.nn.functional as F
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 # Load model once
-model_path = "model"
+MODEL_PATH = "model"
 
-tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModelForSequenceClassification.from_pretrained(model_path)
-
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
 label_encoder = joblib.load("label_encoder.pkl")
 
 model.eval()
 
-def categorize_ticket(short_desc, desc):
-
-    text = str(short_desc) + " " + str(desc)
-
+def predict_ticket(text: str):
     inputs = tokenizer(
         text,
         return_tensors="pt",
@@ -28,11 +24,13 @@ def categorize_ticket(short_desc, desc):
     with torch.no_grad():
         outputs = model(**inputs)
 
-    probabilities = F.softmax(outputs.logits, dim=1)
-    predicted_class = torch.argmax(probabilities, dim=1).item()
+    probs = F.softmax(outputs.logits, dim=1)
+    pred_class = torch.argmax(probs, dim=1).item()
+    confidence = probs[0][pred_class].item()
 
-    confidence = probabilities[0][predicted_class].item()
+    label = label_encoder.inverse_transform([pred_class])[0]
 
-    predicted_label = label_encoder.inverse_transform([predicted_class])[0]
-
-    return predicted_label, round(confidence, 3)
+    return {
+        "category": label,
+        "confidence": round(confidence, 3)
+    }
