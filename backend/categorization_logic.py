@@ -15,6 +15,11 @@ class CategorizationLogic:
         if len(self.training_df) == 0:
             raise ValueError("No valid historical training data found.")
 
+        print("\n✅ Training Data Loaded Successfully")
+        print("Training Shape:", self.training_df.shape)
+        print("Category Distribution:")
+        print(self.training_df["Category"].value_counts())
+
         self._build_vector_engine()
 
 
@@ -31,7 +36,7 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # LOAD HISTORICAL DATA FROM ALL SHEETS
+    # LOAD TRAINING DATA
     # ---------------------------------------------------
     def _load_historical_data(self, excel_file):
 
@@ -40,64 +45,49 @@ class CategorizationLogic:
 
         for sheet in xls.sheet_names:
 
-            # Skip unwanted sheet if needed
-            if sheet.lower() == "sheet1":
-                continue
+            print(f"Reading sheet: {sheet}")
 
             df = pd.read_excel(xls, sheet)
 
             if df.empty:
+                print(f"Skipping {sheet} — empty sheet")
                 continue
 
             # ------------------------------
-            # Detect Category Column
+            # FORCE CATEGORY COLUMN = "Issue"
             # ------------------------------
-            category_col = None
-            for col in df.columns:
-                if "category" in col.lower():
-                    category_col = col
-                    break
-
-            if category_col is None:
+            if "Issue" not in df.columns:
+                print(f"Skipping {sheet} — no 'Issue' column found")
                 continue
 
+            category_col = "Issue"
+
             # ------------------------------
-            # Detect Text Columns
+            # TEXT COLUMNS
             # ------------------------------
             desc_col = None
-            summary_col = None
-            notes_col = None
+            issue_desc_col = None
 
             for col in df.columns:
-                col_lower = col.lower()
-
-                if "description" in col_lower:
+                if col.lower() == "description":
                     desc_col = col
 
-                if "summary" in col_lower:
-                    summary_col = col
+                if "issue description" in col.lower():
+                    issue_desc_col = col
 
-                if "work" in col_lower:
-                    notes_col = col
+            if desc_col is None and issue_desc_col is None:
+                print(f"Skipping {sheet} — no description columns found")
+                continue
 
             df = df.dropna(subset=[category_col])
 
             if df.empty:
                 continue
 
-            # ------------------------------
-            # Safe Text Combination
-            # ------------------------------
-            desc_series = df[desc_col].astype(str) if desc_col and desc_col in df.columns else ""
-            summary_series = df[summary_col].astype(str) if summary_col and summary_col in df.columns else ""
-            notes_series = df[notes_col].astype(str) if notes_col and notes_col in df.columns else ""
+            desc_series = df[desc_col].astype(str) if desc_col else ""
+            issue_desc_series = df[issue_desc_col].astype(str) if issue_desc_col else ""
 
-            df["combined_text"] = (
-                desc_series + " " +
-                summary_series + " " +
-                notes_series
-            )
-
+            df["combined_text"] = desc_series + " " + issue_desc_series
             df["combined_text"] = df["combined_text"].apply(self._clean_text)
 
             df = df[["combined_text", category_col]]
@@ -118,14 +108,14 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # BUILD VECTOR ENGINE
+    # BUILD TF-IDF ENGINE
     # ---------------------------------------------------
     def _build_vector_engine(self):
 
         self.vectorizer = TfidfVectorizer(
             stop_words="english",
             ngram_range=(1, 2),
-            min_df=1  # IMPORTANT FIX
+            min_df=1
         )
 
         self.training_vectors = self.vectorizer.fit_transform(
@@ -134,7 +124,7 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # CATEGORIZE NEW TICKET (FIXED VERSION)
+    # CATEGORIZE NEW TICKET
     # ---------------------------------------------------
     def categorize(self, text):
 
@@ -147,11 +137,10 @@ class CategorizationLogic:
             self.training_vectors
         )[0]
 
-        # Add similarity scores to dataframe
         temp_df = self.training_df.copy()
         temp_df["similarity"] = similarities
 
-        # ---- CATEGORY LEVEL AGGREGATION (MAIN FIX) ----
+        # CATEGORY LEVEL AGGREGATION
         category_scores = (
             temp_df.groupby("Category")["similarity"]
             .mean()
