@@ -1,95 +1,102 @@
 # backend/categorization_logic.py
 
+import pandas as pd
 import re
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 class CategorizationLogic:
 
-    def __init__(self):
-        self.rules = self._build_rules()
+    def __init__(self, excel_file):
+        self.training_df = self._load_historical_data(excel_file)
+        self._build_vector_engine()
 
+    # ---------------------------------
+    # Clean text
+    # ---------------------------------
     def _clean(self, text):
         text = str(text).lower()
         text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text)
         return text
 
-    def _build_rules(self):
+    # ---------------------------------
+    # Load ALL sheets except Sheet1
+    # ---------------------------------
+    def _load_historical_data(self, excel_file):
 
-        return {
+        xls = pd.ExcelFile(excel_file)
+        sheets = xls.sheet_names
 
-            "IT : System Issue": [
-                "integration", "not flowing", "not reflecting",
-                "system error", "technical failure"
-            ],
+        rows = []
 
-            "IT : Access": [
-                "access", "login", "permission",
-                "authorization", "unable to login"
-            ],
+        for sheet in sheets:
 
-            "IT : Master Data": [
-                "backend master", "system master data",
-                "data load failed"
-            ],
+            # Skip Sheet1 if it is rule definition
+            if sheet.lower() == "sheet1":
+                continue
 
-            "User : Mappings Missing": [
-                "mapping", "not mapped",
-                "missing mapping"
-            ],
+            df = pd.read_excel(xls, sheet)
 
-            "User : Master Data": [
-                "rate missing", "material not visible",
-                "bulk rate", "new material"
-            ],
+            if "Issue" not in df.columns:
+                continue
 
-            "User : Business Logic Issue": [
-                "excel mismatch", "logic difference",
-                "calculation wrong", "version issue"
-            ],
+            for _, row in df.iterrows():
 
-            "Master Data Issue": [
-                "master data mismatch",
-                "master data error"
-            ],
+                issue = str(row.get("Issue", "")).strip()
 
-            "User Awareness": [
-                "how to", "clarification",
-                "guidance", "cannot understand"
-            ]
-        }
+                text = " ".join([
+                    str(row.get("Description", "")),
+                    str(row.get("Issue Description", "")),
+                    str(row.get("Remarks", "")),
+                    str(row.get("Ticket Details", "")),
+                    str(row.get("Ticket Summary", ""))
+                ])
 
+                text = self._clean(text)
+
+                if issue and text.strip():
+                    rows.append({
+                        "issue": issue,
+                        "text": text
+                    })
+
+        return pd.DataFrame(rows)
+
+    # ---------------------------------
+    # Build TF-IDF model
+    # ---------------------------------
+    def _build_vector_engine(self):
+
+        self.vectorizer = TfidfVectorizer(
+            stop_words="english",
+            ngram_range=(1, 2)
+        )
+
+        self.training_vectors = self.vectorizer.fit_transform(
+            self.training_df["text"]
+        )
+
+    # ---------------------------------
+    # Categorize
+    # ---------------------------------
     def categorize(self, text):
 
         text = self._clean(text)
 
-        scores = {}
+        text_vector = self.vectorizer.transform([text])
 
-        for category, keywords in self.rules.items():
+        similarities = cosine_similarity(
+            text_vector,
+            self.training_vectors
+        )[0]
 
-            score = 0
+        best_index = similarities.argmax()
+        best_score = similarities[best_index]
 
-            for keyword in keywords:
-                if keyword in text:
-                    score += 1
+        if best_score < 0.1:
+            return "User Awareness", round(float(best_score), 3)
 
-            scores[category] = score
+        best_issue = self.training_df.iloc[best_index]["issue"]
 
-        # Remove fallback category temporarily
-        fallback_score = scores["User Awareness"]
-        del scores["User Awareness"]
-
-        # Find best non-fallback category
-        best_category = max(scores, key=scores.get)
-        best_score = scores[best_category]
-
-        # If meaningful match found
-        if best_score >= 1:
-            confidence = min(best_score / 3, 1.0)
-            return best_category, round(confidence, 3)
-
-        # If nothing matched strongly → check if awareness matched
-        if fallback_score >= 1:
-            return "User Awareness", 0.7
-
-        # Final fallback
-        return "User Awareness", 0.4
+        return best_issue, round(float(best_score), 3)
