@@ -3,69 +3,87 @@
 import pandas as pd
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 class CategorizationLogic:
 
     def __init__(self, excel_file):
-        self._load_training_data(excel_file)
-        self._train_model()
 
-    # ----------------------------
-    # Clean text
-    # ----------------------------
-    def _clean(self, text):
-        if pd.isna(text):
-            return ""
-        text = str(text).lower()
-        text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text)
-        return text.strip()
+        self.training_df = self._load_historical_data(excel_file)
 
-    # ----------------------------
-    # Load training data
-    # ----------------------------
-    def _load_training_data(self, excel_file):
+        if len(self.training_df) == 0:
+            raise ValueError("No training data found in issue category file.")
+
+        self._build_vector_engine()
+
+
+    # ---------------------------------------------------
+    # Load historical tickets from ALL sheets except Sheet1
+    # ---------------------------------------------------
+    def _load_historical_data(self, excel_file):
 
         xls = pd.ExcelFile(excel_file)
-        sheets = xls.sheet_names
+        all_data = []
 
-        texts = []
-        labels = []
-
-        for sheet in sheets:
+        for sheet in xls.sheet_names:
 
             if sheet.lower() == "sheet1":
-                continue
+                continue  # Skip rule sheet
 
             df = pd.read_excel(xls, sheet)
 
-            if "Ticket Description" not in df.columns:
-                continue
+            required_cols = [
+                "Ticket Description",
+                "Summary",
+                "Work notes",
+                "Category"
+            ]
 
-            if "Issue category" not in df.columns:
-                continue
+            for col in required_cols:
+                if col not in df.columns:
+                    continue
 
-            df = df.dropna(subset=["Ticket Description", "Issue category"])
+            df = df.dropna(subset=["Category"])
 
-            for _, row in df.iterrows():
-                text = self._clean(row["Ticket Description"])
-                label = str(row["Issue category"]).strip()
+            df["combined_text"] = (
+                df.get("Ticket Description", "").astype(str) + " " +
+                df.get("Summary", "").astype(str) + " " +
+                df.get("Work notes", "").astype(str)
+            )
 
-                if text and label and label != "nan":
-                    texts.append(text)
-                    labels.append(label)
+            df["combined_text"] = df["combined_text"].apply(self._clean_text)
 
-        if not texts:
-            raise ValueError("No valid training data found.")
+            all_data.append(
+                df[["combined_text", "Category"]]
+            )
 
-        self.texts = texts
-        self.labels = labels
+        if len(all_data) == 0:
+            return pd.DataFrame()
 
-    # ----------------------------
-    # Train model
-    # ----------------------------
-    def _train_model(self):
+        final_df = pd.concat(all_data, ignore_index=True)
+
+        final_df = final_df.rename(columns={"combined_text": "text"})
+
+        return final_df
+
+
+    # ---------------------------------------------------
+    # Clean text
+    # ---------------------------------------------------
+    def _clean_text(self, text):
+
+        text = text.lower()
+        text = re.sub(r"[^a-zA-Z0-9 ]", " ", text)
+        text = re.sub(r"\s+", " ", text)
+
+        return text.strip()
+
+
+    # ---------------------------------------------------
+    # Build Vector Engine
+    # ---------------------------------------------------
+    def _build_vector_engine(self):
 
         self.vectorizer = TfidfVectorizer(
             stop_words="english",
@@ -73,28 +91,28 @@ class CategorizationLogic:
             min_df=2
         )
 
-        X = self.vectorizer.fit_transform(self.texts)
-
-        self.model = LogisticRegression(
-            max_iter=1000,
-            class_weight="balanced"
+        self.training_vectors = self.vectorizer.fit_transform(
+            self.training_df["text"]
         )
 
-        self.model.fit(X, self.labels)
 
-    # ----------------------------
-    # Predict
-    # ----------------------------
+    # ---------------------------------------------------
+    # Categorize New Ticket
+    # ---------------------------------------------------
     def categorize(self, text):
 
-        text = self._clean(text)
+        cleaned = self._clean_text(text)
 
-        if not text:
-            return "User Awareness", 0.0
+        input_vector = self.vectorizer.transform([cleaned])
 
-        X_new = self.vectorizer.transform([text])
+        similarities = cosine_similarity(
+            input_vector,
+            self.training_vectors
+        )
 
-        prediction = self.model.predict(X_new)[0]
-        probability = max(self.model.predict_proba(X_new)[0])
+        best_index = similarities.argmax()
+        best_score = similarities[0][best_index]
 
-        return prediction, round(float(probability), 3)
+        predicted_category = self.training_df.iloc[best_index]["Category"]
+
+        return predicted_category, round(float(best_score), 3)
