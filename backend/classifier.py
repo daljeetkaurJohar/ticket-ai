@@ -2,9 +2,7 @@
 
 from categorization_logic import CategorizationLogic
 
-# Load Excel Logic
 logic = CategorizationLogic("data/issue category.xlsx")
-
 
 def predict_ticket(text: str):
 
@@ -13,5 +11,5 @@ def predict_ticket(text: str):
     return {
         "category": category,
         "confidence": confidence,
-        "source": "Excel Logic"
+        "source": "Excel Reference Engine"
     }
