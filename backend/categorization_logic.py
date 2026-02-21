@@ -25,43 +25,46 @@ class CategorizationLogic:
     # ---------------------------------
     def _load_historical_data(self, excel_file):
 
-        xls = pd.ExcelFile(excel_file)
-        sheets = xls.sheet_names
+    xls = pd.ExcelFile(excel_file)
+    sheets = xls.sheet_names
 
-        rows = []
+    rows = []
 
-        for sheet in sheets:
+    for sheet in sheets:
 
-            # Skip Sheet1 if it is rule definition
-            if sheet.lower() == "sheet1":
-                continue
+        # Skip Sheet1 (rule definition sheet)
+        if sheet.lower() == "sheet1":
+            continue
 
-            df = pd.read_excel(xls, sheet)
+        df = pd.read_excel(xls, sheet)
 
-            if "Issue" not in df.columns:
-                continue
+        print(f"Reading sheet: {sheet}")
+        print("Columns found:", df.columns.tolist())
 
-            for _, row in df.iterrows():
+        if "Issue" not in df.columns:
+            continue
 
-                issue = str(row.get("Issue", "")).strip()
+        for _, row in df.iterrows():
 
-                text = " ".join([
-                    str(row.get("Description", "")),
-                    str(row.get("Issue Description", "")),
-                    str(row.get("Remarks", "")),
-                    str(row.get("Ticket Details", "")),
-                    str(row.get("Ticket Summary", ""))
-                ])
+            issue = str(row.get("Issue", "")).strip()
 
-                text = self._clean(text)
+            # Dynamically combine ALL columns
+            text = " ".join([
+                str(row[col]) for col in df.columns
+            ])
 
-                if issue and text.strip():
-                    rows.append({
-                        "issue": issue,
-                        "text": text
-                    })
+            text = self._clean(text)
 
-        return pd.DataFrame(rows)
+            if issue and text.strip():
+                rows.append({
+                    "issue": issue,
+                    "text": text
+                })
+
+    if not rows:
+        raise ValueError("No historical training data loaded.")
+
+    return pd.DataFrame(rows)
 
     # ---------------------------------
     # Build TF-IDF model
