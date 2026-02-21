@@ -9,8 +9,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 class CategorizationLogic:
 
     def __init__(self, excel_file):
-        self.issue_corpus = self._build_category_corpus(excel_file)
-        self._build_vector_model()
+
+        self.sheet1_df = self._load_sheet1(excel_file)
+        self.history_df = self._load_historical(excel_file)
+
+        self._build_vector_models()
 
     # ---------------------------------
     # Clean text
@@ -21,14 +24,41 @@ class CategorizationLogic:
         return text
 
     # ---------------------------------
-    # Club all ticket descriptions per category
+    # Load Sheet1 (issue definitions)
     # ---------------------------------
-    def _build_category_corpus(self, excel_file):
+    def _load_sheet1(self, excel_file):
+
+        df = pd.read_excel(excel_file, sheet_name="Sheet1")
+
+        rows = []
+
+        for _, row in df.iterrows():
+            issue = str(row["Issue"]).strip()
+
+            text = " ".join([
+                str(row.get("Description", "")),
+                str(row.get("Issue Description", ""))
+            ])
+
+            text = self._clean(text)
+
+            if issue and text:
+                rows.append({
+                    "issue": issue,
+                    "text": text
+                })
+
+        return pd.DataFrame(rows)
+
+    # ---------------------------------
+    # Load historical sheets
+    # ---------------------------------
+    def _load_historical(self, excel_file):
 
         xls = pd.ExcelFile(excel_file)
         sheets = xls.sheet_names
 
-        category_text = {}
+        rows = []
 
         for sheet in sheets:
 
@@ -45,26 +75,21 @@ class CategorizationLogic:
 
             for _, row in df.iterrows():
 
-                category = str(row["Issue category"]).strip()
                 text = self._clean(row["Ticket Description"])
+                issue = str(row["Issue category"]).strip()
 
-                if category not in category_text:
-                    category_text[category] = ""
+                if issue and text:
+                    rows.append({
+                        "issue": issue,
+                        "text": text
+                    })
 
-                category_text[category] += " " + text
-
-        if not category_text:
-            raise ValueError("No historical ticket data found.")
-
-        return category_text
+        return pd.DataFrame(rows)
 
     # ---------------------------------
-    # Build TF-IDF vectors per category
+    # Build vector models
     # ---------------------------------
-    def _build_vector_model(self):
-
-        self.categories = list(self.issue_corpus.keys())
-        corpus = [self.issue_corpus[cat] for cat in self.categories]
+    def _build_vector_models(self):
 
         self.vectorizer = TfidfVectorizer(
             stop_words="english",
@@ -72,24 +97,35 @@ class CategorizationLogic:
             min_df=2
         )
 
-        self.category_vectors = self.vectorizer.fit_transform(corpus)
+        combined_corpus = list(self.sheet1_df["text"]) + list(self.history_df["text"])
+
+        self.vectorizer.fit(combined_corpus)
+
+        self.sheet1_vectors = self.vectorizer.transform(self.sheet1_df["text"])
+        self.history_vectors = self.vectorizer.transform(self.history_df["text"])
 
     # ---------------------------------
-    # Categorize new ticket
+    # Categorize ticket
     # ---------------------------------
     def categorize(self, text):
 
         text = self._clean(text)
-
         new_vector = self.vectorizer.transform([text])
 
-        similarities = cosine_similarity(
-            new_vector,
-            self.category_vectors
-        )[0]
+        # Similarity with Sheet1
+        sim_sheet1 = cosine_similarity(new_vector, self.sheet1_vectors)[0]
+        best_sheet1_idx = sim_sheet1.argmax()
+        best_sheet1_score = sim_sheet1[best_sheet1_idx]
+        best_sheet1_issue = self.sheet1_df.iloc[best_sheet1_idx]["issue"]
 
-        best_index = similarities.argmax()
-        best_score = similarities[best_index]
-        best_category = self.categories[best_index]
+        # Similarity with historical
+        sim_history = cosine_similarity(new_vector, self.history_vectors)[0]
+        best_history_idx = sim_history.argmax()
+        best_history_score = sim_history[best_history_idx]
+        best_history_issue = self.history_df.iloc[best_history_idx]["issue"]
 
-        return best_category, round(float(best_score), 3)
+        # Decide final category
+        if best_sheet1_score > best_history_score:
+            return best_sheet1_issue, round(float(best_sheet1_score), 3)
+        else:
+            return best_history_issue, round(float(best_history_score), 3)
