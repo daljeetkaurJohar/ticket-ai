@@ -8,80 +8,88 @@ class CategorizationLogic:
     def __init__(self):
         self.rules = self._build_rules()
 
-    # ----------------------------------
-    # Clean text
-    # ----------------------------------
     def _clean(self, text):
         text = str(text).lower()
         text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text)
         return text
 
-    # ----------------------------------
-    # Explicit deterministic rules
-    # ----------------------------------
     def _build_rules(self):
 
         return {
 
-            "IT : System Issue": {
-                "must_have": ["integration", "not flowing", "not reflecting", "error", "failure"],
-                "exclude": ["how to", "clarification"]
-            },
+            "IT : System Issue": [
+                "integration", "not flowing", "not reflecting",
+                "system error", "technical failure"
+            ],
 
-            "IT : Access": {
-                "must_have": ["access", "login", "permission", "authorization"],
-                "exclude": []
-            },
+            "IT : Access": [
+                "access", "login", "permission",
+                "authorization", "unable to login"
+            ],
 
-            "IT : Master Data": {
-                "must_have": ["system master data", "backend master", "data load failed"],
-                "exclude": []
-            },
+            "IT : Master Data": [
+                "backend master", "system master data",
+                "data load failed"
+            ],
 
-            "User : Mappings Missing": {
-                "must_have": ["mapping", "not mapped", "missing mapping"],
-                "exclude": []
-            },
+            "User : Mappings Missing": [
+                "mapping", "not mapped",
+                "missing mapping"
+            ],
 
-            "User : Master Data": {
-                "must_have": ["rate missing", "material not visible", "bulk rate", "new material"],
-                "exclude": []
-            },
+            "User : Master Data": [
+                "rate missing", "material not visible",
+                "bulk rate", "new material"
+            ],
 
-            "User : Business Logic Issue": {
-                "must_have": ["excel mismatch", "logic difference", "calculation wrong", "version issue"],
-                "exclude": []
-            },
+            "User : Business Logic Issue": [
+                "excel mismatch", "logic difference",
+                "calculation wrong", "version issue"
+            ],
 
-            "Master Data Issue": {
-                "must_have": ["master data mismatch", "master data error"],
-                "exclude": []
-            },
+            "Master Data Issue": [
+                "master data mismatch",
+                "master data error"
+            ],
 
-            "User Awareness": {
-                "must_have": ["how to", "clarification", "cannot understand", "guidance"],
-                "exclude": []
-            }
+            "User Awareness": [
+                "how to", "clarification",
+                "guidance", "cannot understand"
+            ]
         }
 
-    # ----------------------------------
-    # Categorize
-    # ----------------------------------
     def categorize(self, text):
 
         text = self._clean(text)
 
-        for category, conditions in self.rules.items():
+        scores = {}
 
-            must_have = conditions["must_have"]
-            exclude = conditions["exclude"]
+        for category, keywords in self.rules.items():
 
-            # Check must-have keywords
-            if any(keyword in text for keyword in must_have):
+            score = 0
 
-                # Check exclusion
-                if not any(ex in text for ex in exclude):
-                    return category, 0.9
+            for keyword in keywords:
+                if keyword in text:
+                    score += 1
+
+            scores[category] = score
+
+        # Remove fallback category temporarily
+        fallback_score = scores["User Awareness"]
+        del scores["User Awareness"]
+
+        # Find best non-fallback category
+        best_category = max(scores, key=scores.get)
+        best_score = scores[best_category]
+
+        # If meaningful match found
+        if best_score >= 1:
+            confidence = min(best_score / 3, 1.0)
+            return best_category, round(confidence, 3)
+
+        # If nothing matched strongly → check if awareness matched
+        if fallback_score >= 1:
+            return "User Awareness", 0.7
 
         # Final fallback
-        return "User Awareness", 0.5
+        return "User Awareness", 0.4
