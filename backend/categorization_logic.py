@@ -2,126 +2,86 @@
 
 import pandas as pd
 import re
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
 
 class CategorizationLogic:
 
     def __init__(self, excel_file):
-        self.rules_df = self._load_all_rows(excel_file)
-        self._build_vector_engine()
-        self._build_issue_counts()
+        self.rules = self._extract_rules(excel_file)
 
-    # --------------------------------
+    # -----------------------------
     # Clean Text
-    # --------------------------------
+    # -----------------------------
     def _clean(self, text):
         text = str(text).lower()
         text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text)
         return text
 
-    # --------------------------------
-    # Load ALL rows
-    # --------------------------------
-    def _load_all_rows(self, excel_file):
+    # -----------------------------
+    # Extract structured rules
+    # -----------------------------
+    def _extract_rules(self, excel_file):
 
-        xls = pd.ExcelFile(excel_file)
-        rows = []
+        df = pd.read_excel(excel_file, sheet_name=0)
 
-        for sheet in xls.sheet_names:
-            df = pd.read_excel(xls, sheet)
+        rule_dict = {}
 
-            if "Issue" not in df.columns:
-                continue
+        for _, row in df.iterrows():
 
-            for _, row in df.iterrows():
+            issue = str(row.get("Issue", "")).strip()
 
-                issue = str(row.get("Issue", "")).strip()
+            rule_text = " ".join([
+                str(row.get("Description", "")),
+                str(row.get("Issue Description", "")),
+                str(row.get("Unnamed: 5", ""))
+            ])
 
-                text = " ".join([
-                    str(row.get("Description", "")),
-                    str(row.get("Issue Description", "")),
-                    str(row.get("Remarks", "")),
-                    str(row.get("Unnamed: 5", ""))
-                ])
+            rule_text = self._clean(rule_text)
 
-                text = self._clean(text)
+            keywords = [
+                word.strip()
+                for word in rule_text.split()
+                if len(word) > 3
+            ]
 
-                if issue and text.strip():
-                    rows.append({
-                        "issue": issue,
-                        "text": text
-                    })
+            if issue not in rule_dict:
+                rule_dict[issue] = set()
 
-        return pd.DataFrame(rows)
+            rule_dict[issue].update(keywords)
 
-    # --------------------------------
-    # Build TF-IDF Engine
-    # --------------------------------
-    def _build_vector_engine(self):
+        return rule_dict
 
-        self.vectorizer = TfidfVectorizer(
-            stop_words="english",
-            ngram_range=(1, 2)
-        )
-
-        self.row_vectors = self.vectorizer.fit_transform(
-            self.rules_df["text"]
-        )
-
-    # --------------------------------
-    # Count rows per issue (for normalization)
-    # --------------------------------
-    def _build_issue_counts(self):
-        self.issue_counts = self.rules_df["issue"].value_counts().to_dict()
-
-    # --------------------------------
-    # FINAL Categorize
-    # --------------------------------
+    # -----------------------------
+    # Deterministic Categorization
+    # -----------------------------
     def categorize(self, text):
 
         text = self._clean(text)
 
-        text_vector = self.vectorizer.transform([text])
+        # PRIORITY ORDER
+        priority_order = [
+            "System linkage issue",
+            "Mapping missing from user",
+            "Multiple versions issue in excel",
+            "Masterdata - delayed input from user",
+            "Logic mistakes in excel vs system",
+            "System Access issue",
+            "User KT issue",
+            "User knowledge gap"
+        ]
 
-        similarities = cosine_similarity(
-            text_vector,
-            self.row_vectors
-        )[0]
+        for category in priority_order:
 
-        # Get Top-K similar rows
-        TOP_K = 7
-        top_indices = similarities.argsort()[-TOP_K:]
+            if category not in self.rules:
+                continue
 
-        issue_scores = {}
+            keywords = self.rules[category]
 
-        for idx in top_indices:
+            # Must match at least 2 keywords
+            matches = sum(1 for word in keywords if word in text)
 
-            issue = self.rules_df.iloc[idx]["issue"]
-            score = similarities[idx]
+            if matches >= 2:
+                confidence = min(matches / 5, 1.0)
+                return category, round(confidence, 3)
 
-            if issue not in issue_scores:
-                issue_scores[issue] = 0
-
-            issue_scores[issue] += score
-
-        # Normalize by issue size
-        for issue in issue_scores:
-            issue_scores[issue] /= self.issue_counts.get(issue, 1)
-
-        # Optional: penalize generic category
-        if "User knowledge gap" in issue_scores:
-            issue_scores["User knowledge gap"] *= 0.85
-
-        if not issue_scores:
-            return "Needs Manual Review", 0.0
-
-        best_issue = max(issue_scores, key=issue_scores.get)
-        best_score = issue_scores[best_issue]
-
-        if best_score < 0.03:
-            return "Needs Manual Review", round(float(best_score), 3)
-
-        return best_issue, round(float(best_score), 3)
+        return "Needs Manual Review", 0.0
