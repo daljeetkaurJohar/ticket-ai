@@ -39,12 +39,6 @@ if uploaded_file:
     predictions = []
     confidences = []
 
-    # ---------------------------------------------------
-    # Predict Categories
-    # ---------------------------------------------------
-    predictions = []
-    confidences = []
-
     for _, row in df.iterrows():
 
         text = " ".join([
@@ -68,45 +62,25 @@ if uploaded_file:
     # Refined Executive Summary (2-Line Version)
     # ---------------------------------------------------
     def refine_summary(row):
-    
+
         desc = str(row.get("Ticket Description", "")).strip()
         summary = str(row.get("Summary", "")).strip()
         notes = str(row.get("Work notes", "")).strip()
         category = str(row.get("Predicted Category", "")).strip()
-    
-        # Combine context
+
         combined = " ".join([desc, summary, notes]).strip()
-    
+
         if not combined:
             return f"{category} reported.\nFurther investigation required."
-    
-        # Shorten to meaningful 2 lines
-        short_text = combined[:250]  # avoid too long text
-    
+
+        short_text = combined[:250]
+
         line1 = f"{category} identified impacting operations."
         line2 = short_text
-    
+
         return f"{line1}\n{line2}"
-Problem Statement:
-{desc.strip()}
-
-Business Context:
-{summary.strip()}
-
-Technical / Operational Notes:
-{notes.strip()}
-
-Final Classification:
-{row.get("Predicted Category","")}
-
-Confidence Score:
-{row.get("Confidence","")}
-        """.strip()
-
-        return refined
 
     df["Executive Refined Summary"] = df.apply(refine_summary, axis=1)
-
 
     # ---------------------------------------------------
     # Date & Month Handling
@@ -119,7 +93,6 @@ Confidence Score:
         df["Resolved / Raised Date"] = pd.NaT
 
     df["Month"] = df["Resolved / Raised Date"].dt.strftime("%B")
-
 
     # ---------------------------------------------------
     # KPI SECTION
@@ -138,23 +111,19 @@ Confidence Score:
     col3.metric("Avg Confidence", avg_confidence)
     col4.metric("Top Category", top_category)
 
-
     # ---------------------------------------------------
     # DASHBOARD SECTION
     # ---------------------------------------------------
     st.markdown("## 📊 Dashboard Overview")
 
-    # Category Distribution
     st.subheader("Issue Category Distribution")
     category_counts = df["Predicted Category"].value_counts()
     st.bar_chart(category_counts)
 
-    # Month-wise Ticket Count
     st.subheader("Month-wise Ticket Count")
     month_counts = df.groupby("Month").size()
     st.bar_chart(month_counts)
 
-    # Month-wise Percentage Distribution
     st.subheader("Month-wise Issue Percentage")
 
     month_category = (
@@ -170,13 +139,11 @@ Confidence Score:
     st.dataframe(month_percentage.round(2))
     st.bar_chart(month_percentage)
 
-
     # ---------------------------------------------------
     # DETAILED DATA VIEW
     # ---------------------------------------------------
     st.markdown("## 📄 Detailed Ticket View")
     st.dataframe(df)
-
 
     # ---------------------------------------------------
     # PROFESSIONAL EXCEL OUTPUT
@@ -185,17 +152,14 @@ Confidence Score:
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
 
-        # Detailed Sheet
         df.to_excel(writer, sheet_name="Detailed_Tickets", index=False)
 
-        # Pivot Summary Sheet
         summary_sheet = df.groupby(
             ["Month", "Predicted Category"]
         ).size().reset_index(name="Ticket Count")
 
         summary_sheet.to_excel(writer, sheet_name="Monthly_Summary", index=False)
 
-        # Category Summary Sheet
         category_summary = df["Predicted Category"].value_counts().reset_index()
         category_summary.columns = ["Category", "Total Tickets"]
 
