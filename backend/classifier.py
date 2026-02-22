@@ -1,12 +1,17 @@
 # backend/classifier.py
 
+import os
 import streamlit as st
 from categorization_logic import CategorizationLogic
 
 
-#@st.cache_resource
+@st.cache_resource
 def load_model():
-    return CategorizationLogic("data/issue category.xlsx")
+
+    base_path = os.path.dirname(__file__)
+    excel_path = os.path.join(base_path, "..", "data", "issue category.xlsx")
+
+    return CategorizationLogic(excel_path)
 
 
 logic = load_model()
@@ -16,11 +21,7 @@ def predict_ticket(text: str):
 
     category, confidence = logic.categorize(text)
 
-    print("TEXT:", text[:80])
-    print("PREDICTED:", category, "CONF:", confidence)
-
     return {
         "category": category,
-        "confidence": confidence,
-        "source": "ML Classifier"
+        "confidence": confidence
     }
