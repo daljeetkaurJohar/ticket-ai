@@ -2,7 +2,6 @@
 
 import pandas as pd
 import re
-import os
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -18,7 +17,7 @@ class CategorizationLogic:
 
         print("\n✅ Training Data Loaded")
         print("Training Shape:", self.training_df.shape)
-        print("\nCategory Distribution:")
+        print("\nCategory Distribution (After Cleaning):")
         print(self.training_df["Category"].value_counts())
 
         self._build_vector_index()
@@ -37,7 +36,7 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # LOAD ALL SHEETS PROPERLY
+    # LOAD + NORMALIZE DATA
     # ---------------------------------------------------
     def _load_historical_data(self, excel_file):
 
@@ -62,6 +61,48 @@ class CategorizationLogic:
 
             df = df.dropna(subset=["Issue category", "Ticket Description"])
 
+            # ---------------------------------------------------
+            # CATEGORY NORMALIZATION MAP
+            # ---------------------------------------------------
+            category_mapping = {
+
+                # User-related messy labels
+                "User Awareness": "User knowledge gap",
+                "User awareness": "User knowledge gap",
+                "User : Business Logic Issue": "Logic mistakes in excel vs system",
+                "User : Mappings Missing": "Mapping missing from user",
+                "User : Master Data": "Masterdata - delayed input from user",
+                "USer : Master Data": "Masterdata - delayed input from user",
+
+                # IT-related messy labels
+                "IT : Access": "System Access issue",
+                "IT : System Issue": "System linkage issue",
+                "IT : Change": "System linkage issue",
+                "IT : Master Data": "Masterdata - incorporation in system",
+                "Master Data Issue": "Masterdata - incorporation in system",
+            }
+
+            df["Issue category"] = df["Issue category"].replace(category_mapping)
+
+            # ---------------------------------------------------
+            # KEEP ONLY VALID FINAL CATEGORIES
+            # ---------------------------------------------------
+            valid_categories = [
+                "User KT issue",
+                "User knowledge gap",
+                "Masterdata - delayed input from user",
+                "Mapping missing from user",
+                "Multiple versions issue in excel",
+                "Delayed logic changes from users",
+                "Logic mistakes in excel vs system",
+                "System Access issue",
+                "System linkage issue",
+                "Masterdata - incorporation in system"
+            ]
+
+            df = df[df["Issue category"].isin(valid_categories)]
+
+            # Clean text
             df["text"] = df["Ticket Description"].apply(self._clean_text)
 
             df = df[["text", "Issue category"]]
@@ -74,27 +115,11 @@ class CategorizationLogic:
 
         final_df = pd.concat(all_data, ignore_index=True)
 
-        # ✅ Only allow correct 10 categories
-        valid_categories = [
-            "User KT issue",
-            "User knowledge gap",
-            "Masterdata - delayed input from user",
-            "Mapping missing from user",
-            "Multiple versions issue in excel",
-            "Delayed logic changes from users",
-            "Logic mistakes in excel vs system",
-            "System Access issue",
-            "System linkage issue",
-            "Masterdata - incorporation in system"
-        ]
-
-        final_df = final_df[final_df["Category"].isin(valid_categories)]
-
         return final_df
 
 
     # ---------------------------------------------------
-    # BUILD SIMILARITY MODEL
+    # BUILD VECTOR INDEX
     # ---------------------------------------------------
     def _build_vector_index(self):
 
@@ -113,7 +138,7 @@ class CategorizationLogic:
 
 
     # ---------------------------------------------------
-    # PREDICT USING COSINE SIMILARITY
+    # PREDICT USING SIMILARITY
     # ---------------------------------------------------
     def categorize(self, text):
 
@@ -133,8 +158,8 @@ class CategorizationLogic:
         best_score = similarities[best_index]
         predicted_category = self.training_categories[best_index]
 
-        # Threshold
-        if best_score < 0.15:
+        # Confidence threshold
+        if best_score < 0.18:
             return "Needs Review", round(float(best_score), 3)
 
         return predicted_category, round(float(best_score), 3)
