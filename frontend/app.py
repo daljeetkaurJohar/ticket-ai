@@ -35,44 +35,60 @@ if uploaded_file:
     df = pd.read_excel(uploaded_file)
 
     # ---------------------------------------------------
-    # Predict Categories (Clean Professional Version)
+    # Predict Categories (Robust Dynamic Version)
     # ---------------------------------------------------
+    import re
+    
     predictions = []
     confidences = []
-
+    
+    # Detect possible text columns automatically
+    possible_text_columns = [
+        "Ticket Description",
+        "Description",
+        "Summary",
+        "Issue Description",
+        "Ticket Summary",
+        "Remarks",
+        "Details"
+    ]
+    
+    available_text_cols = [col for col in possible_text_columns if col in df.columns]
+    
     for _, row in df.iterrows():
-
-        # Use only issue-level fields (NOT work notes)
-        text = " ".join([
-            str(row.get("Ticket Description", "")),
-            str(row.get("Issue Description", "")),
-            str(row.get("Ticket Summary", ""))
-        ]).strip()
-
-        # Remove timestamps
+    
+        # Combine only available columns
+        text_parts = []
+    
+        for col in available_text_cols:
+            value = str(row.get(col, "")).strip()
+            if value and value.lower() != "nan":
+                text_parts.append(value)
+    
+        text = " ".join(text_parts)
+    
+        # Clean timestamps
         text = re.sub(r"\d{2}-\d{2}-\d{4}.*?(AM|PM)", "", text)
-
+    
         # Remove resolution noise
         text = re.sub(r"resolved.*", "", text, flags=re.IGNORECASE)
         text = re.sub(r"closing.*", "", text, flags=re.IGNORECASE)
         text = re.sub(r"completed.*", "", text, flags=re.IGNORECASE)
-
+    
         text = text.strip()
-
-        # Handle empty tickets safely
-        if not text or text.lower() == "nan":
+    
+        if not text:
             predictions.append("Insufficient Data")
             confidences.append(0.0)
             continue
-
+    
         result = predict_ticket(text)
-
+    
         predictions.append(result["category"])
         confidences.append(result["confidence"])
-
+    
     df["Predicted Category"] = predictions
     df["Confidence"] = confidences
-
 
     # ---------------------------------------------------
     # Professional Executive Summary (2-Line Clean)
