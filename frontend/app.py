@@ -5,6 +5,7 @@ import pandas as pd
 import sys
 import os
 import io
+import re
 from datetime import datetime
 
 # Add backend to path
@@ -34,21 +35,35 @@ if uploaded_file:
     df = pd.read_excel(uploaded_file)
 
     # ---------------------------------------------------
-    # Predict Categories
+    # Predict Categories (Clean Professional Version)
     # ---------------------------------------------------
     predictions = []
     confidences = []
 
     for _, row in df.iterrows():
 
+        # Use only issue-level fields (NOT work notes)
         text = " ".join([
             str(row.get("Ticket Description", "")),
-            str(row.get("Summary", "")),
-            str(row.get("Work notes", "")),
-            str(row.get("Remarks", "")),
-            str(row.get("Ticket Summary", "")),
-            str(row.get("Ticket Details", ""))
-        ])
+            str(row.get("Issue Description", "")),
+            str(row.get("Ticket Summary", ""))
+        ]).strip()
+
+        # Remove timestamps
+        text = re.sub(r"\d{2}-\d{2}-\d{4}.*?(AM|PM)", "", text)
+
+        # Remove resolution noise
+        text = re.sub(r"resolved.*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"closing.*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"completed.*", "", text, flags=re.IGNORECASE)
+
+        text = text.strip()
+
+        # Handle empty tickets safely
+        if not text or text.lower() == "nan":
+            predictions.append("Insufficient Data")
+            confidences.append(0.0)
+            continue
 
         result = predict_ticket(text)
 
@@ -58,56 +73,52 @@ if uploaded_file:
     df["Predicted Category"] = predictions
     df["Confidence"] = confidences
 
-    # ---------------------------------------------------
-    # Professional Executive Summary (Clean 2-Line)
-    # ---------------------------------------------------
-    def refine_summary(row):
-    
-        desc = str(row.get("Ticket Description", "")).strip()
-        summary = str(row.get("Summary", "")).strip()
-    
-        category = str(row.get("Predicted Category", "")).strip()
-    
-        # Remove timestamps and names (basic cleaning)
-        import re
-        clean_text = re.sub(r"\d{2}-\d{2}-\d{4}.*?(AM|PM)", "", desc)
-        clean_text = re.sub(r"-\s*[A-Z\s]+\(Work.*?\)", "", clean_text)
-    
-        clean_text = clean_text.strip()
-    
-        if not clean_text:
-            clean_text = desc[:200]
-    
-        # Build 2 professional lines
-        line1 = f"{category} impacting business operations."
-        line2 = clean_text[:220]
-    
-        return f"{line1}\n{line2}"
 
     # ---------------------------------------------------
-    # Date & Month Handling (Robust Version)
+    # Professional Executive Summary (2-Line Clean)
     # ---------------------------------------------------
-    
+    def refine_summary(row):
+
+        desc = str(row.get("Ticket Description", "")).strip()
+        category = str(row.get("Predicted Category", "")).strip()
+
+        # Clean timestamps & noise
+        clean_text = re.sub(r"\d{2}-\d{2}-\d{4}.*?(AM|PM)", "", desc)
+        clean_text = re.sub(r"-\s*[A-Z\s]+\(Work.*?\)", "", clean_text)
+        clean_text = clean_text.strip()
+
+        if not clean_text:
+            clean_text = desc[:200]
+
+        line1 = f"{category} impacting business operations."
+        line2 = clean_text[:220]
+
+        return f"{line1}\n{line2}"
+
+    df["Executive Refined Summary"] = df.apply(refine_summary, axis=1)
+
+
+    # ---------------------------------------------------
+    # Date & Month Handling (Stable Version)
+    # ---------------------------------------------------
     date_col = None
-    
+
     if "Resolved on" in df.columns:
         date_col = "Resolved on"
     elif "Raised on" in df.columns:
         date_col = "Raised on"
-    
+
     if date_col:
         df["Resolved / Raised Date"] = pd.to_datetime(
             df[date_col],
             errors="coerce",
             dayfirst=True
         )
+        df["Month"] = df["Resolved / Raised Date"].dt.strftime("%B")
     else:
-        df["Resolved / Raised Date"] = pd.NaT
-    
-    df["Month"] = df["Resolved / Raised Date"].dt.strftime("%B")
-    
-    # Remove rows where month is null
-    df = df[df["Month"].notna()]
+        df["Month"] = "Unknown"
+
+
     # ---------------------------------------------------
     # KPI SECTION
     # ---------------------------------------------------
@@ -125,19 +136,23 @@ if uploaded_file:
     col3.metric("Avg Confidence", avg_confidence)
     col4.metric("Top Category", top_category)
 
+
     # ---------------------------------------------------
     # DASHBOARD SECTION
     # ---------------------------------------------------
     st.markdown("## 📊 Dashboard Overview")
 
+    # Category Distribution
     st.subheader("Issue Category Distribution")
     category_counts = df["Predicted Category"].value_counts()
     st.bar_chart(category_counts)
 
+    # Month-wise Ticket Count
     st.subheader("Month-wise Ticket Count")
     month_counts = df.groupby("Month").size()
     st.bar_chart(month_counts)
 
+    # Month-wise Percentage Distribution
     st.subheader("Month-wise Issue Percentage")
 
     month_category = (
@@ -153,45 +168,44 @@ if uploaded_file:
     st.dataframe(month_percentage.round(2))
     st.bar_chart(month_percentage)
 
+
     # ---------------------------------------------------
-    # DETAILED DATA VIEW
+    # Detailed Ticket View
     # ---------------------------------------------------
     st.markdown("## 📄 Detailed Ticket View")
     st.dataframe(df)
 
+
     # ---------------------------------------------------
-    # PROFESSIONAL EXCEL OUTPUT
+    # Professional Excel Output
     # ---------------------------------------------------
     output = io.BytesIO()
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    
-        # Sheet 1: Detailed Tickets
+
+        # Detailed Tickets
         df.to_excel(writer, sheet_name="Detailed_Tickets", index=False)
-    
-        # Sheet 2: Monthly Summary
+
+        # Monthly Summary
         monthly_summary = (
             df.groupby(["Month", "Predicted Category"])
             .size()
             .reset_index(name="Ticket Count")
         )
-    
         monthly_summary.to_excel(writer, sheet_name="Monthly_Summary", index=False)
-    
-        # Sheet 3: Category Summary
+
+        # Category Overview
         category_summary = (
             df["Predicted Category"]
             .value_counts()
             .reset_index()
         )
-    
         category_summary.columns = ["Category", "Total Tickets"]
-    
         category_summary["Percentage"] = (
             category_summary["Total Tickets"] /
             category_summary["Total Tickets"].sum() * 100
         ).round(2)
-    
+
         category_summary.to_excel(writer, sheet_name="Category_Overview", index=False)
 
     output.seek(0)
