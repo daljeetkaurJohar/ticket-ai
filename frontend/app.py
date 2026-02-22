@@ -35,61 +35,71 @@ if uploaded_file:
     df = pd.read_excel(uploaded_file)
 
     # ---------------------------------------------------
-    # Predict Categories (Robust Dynamic Version)
+    # Predict Categories + Intelligent Executive Summary
     # ---------------------------------------------------
     import re
     
     predictions = []
     confidences = []
+    executive_summaries = []
     
-    # Detect possible text columns automatically
-    possible_text_columns = [
-        "Ticket Description",
-        "Description",
-        "Summary",
-        "Issue Description",
-        "Ticket Summary",
-        "Remarks",
-        "Details"
+    # Columns that are clearly metadata (ignore these)
+    ignore_columns = [
+        "Resolved on",
+        "Raised on",
+        "Confidence",
+        "Predicted Category",
+        "Month",
+        "Resolved / Raised Date"
     ]
-    
-    available_text_cols = [col for col in possible_text_columns if col in df.columns]
     
     for _, row in df.iterrows():
     
-        # Combine only available columns
+        # Step 1: Read entire row
         text_parts = []
     
-        for col in available_text_cols:
+        for col in df.columns:
+            if col in ignore_columns:
+                continue
+    
             value = str(row.get(col, "")).strip()
+    
             if value and value.lower() != "nan":
                 text_parts.append(value)
     
-        text = " ".join(text_parts)
+        full_text = " ".join(text_parts)
     
-        # Clean timestamps
-        text = re.sub(r"\d{2}-\d{2}-\d{4}.*?(AM|PM)", "", text)
+        # Step 2: Clean timestamps
+        full_text = re.sub(r"\d{2}-\d{2}-\d{4}.*?(AM|PM)", "", full_text)
     
-        # Remove resolution noise
-        text = re.sub(r"resolved.*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"closing.*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"completed.*", "", text, flags=re.IGNORECASE)
+        # Step 3: Remove closure noise
+        full_text = re.sub(r"resolved.*", "", full_text, flags=re.IGNORECASE)
+        full_text = re.sub(r"closing.*", "", full_text, flags=re.IGNORECASE)
+        full_text = re.sub(r"completed.*", "", full_text, flags=re.IGNORECASE)
     
-        text = text.strip()
+        full_text = re.sub(r"\s+", " ", full_text).strip()
     
-        if not text:
+        if not full_text:
             predictions.append("Insufficient Data")
             confidences.append(0.0)
+            executive_summaries.append("Insufficient information available.\nNo issue description found.")
             continue
     
-        result = predict_ticket(text)
+        # Step 4: Predict category
+        result = predict_ticket(full_text)
     
         predictions.append(result["category"])
         confidences.append(result["confidence"])
     
+        # Step 5: Generate professional 2-line executive summary
+        line1 = f"{result['category']} impacting business operations."
+        line2 = full_text[:250]
+    
+        executive_summaries.append(f"{line1}\n{line2}")
+    
     df["Predicted Category"] = predictions
     df["Confidence"] = confidences
-
+    df["Executive Refined Summary"] = executive_summaries
     # ---------------------------------------------------
     # Professional Executive Summary (2-Line Clean)
     # ---------------------------------------------------
