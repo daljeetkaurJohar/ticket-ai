@@ -255,7 +255,7 @@ if uploaded_file:
 
     output.seek(0)
 
-     st.download_button(
+    st.download_button(
         label="📥 Download Professional Output Report",
         data=output,
         file_name="Ticket_Report_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".xlsx",
