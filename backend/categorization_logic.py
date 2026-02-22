@@ -106,23 +106,27 @@ class CategorizationLogic:
     # ---------------------------------------------------
     # PREDICT CATEGORY USING COSINE SIMILARITY
     # ---------------------------------------------------
-    def categorize(self, text):
-
+        def categorize(self, text):
+    
         cleaned = self._clean_text(text)
-
+    
         if not cleaned:
             return "Insufficient Data", 0.0
-
+    
         new_vector = self.vectorizer.transform([cleaned])
-
+    
         similarities = cosine_similarity(
             new_vector,
             self.training_vectors
         )[0]
-
+    
         best_index = similarities.argmax()
         best_score = similarities[best_index]
-
+    
         predicted_category = self.training_categories[best_index]
-
+    
+        # 🔥 ADD THIS BLOCK HERE
+        if best_score < 0.20:
+            return "Needs Review", round(float(best_score), 3)
+    
         return predicted_category, round(float(best_score), 3)
