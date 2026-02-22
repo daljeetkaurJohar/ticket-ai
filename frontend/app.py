@@ -88,6 +88,8 @@ if uploaded_file:
         # Step 4: Predict category
         result = predict_ticket(full_text)
         # If low confidence, mark as Review Required
+        category = result["category"]
+        confidence = result["confidence"]
         if confidence < 0.25:
             category = "Needs Review"
 
