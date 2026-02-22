@@ -130,26 +130,18 @@ if uploaded_file:
 
 
     # ---------------------------------------------------
-    # Robust Date & Month Handling
+    # Date & Month Handling (Correct for Closed/Reported)
     # ---------------------------------------------------
     
     df.columns = df.columns.str.strip()
     
-    possible_date_cols = [
-        "Resolved on",
-        "Resolved On",
-        "resolved on",
-        "Raised on",
-        "Raised On",
-        "raised on"
-    ]
-    
     date_col = None
     
-    for col in possible_date_cols:
-        if col in df.columns:
-            date_col = col
-            break
+    # Priority: use Closed On if available
+    if "Closed On" in df.columns:
+        date_col = "Closed On"
+    elif "Reported On" in df.columns:
+        date_col = "Reported On"
     
     if date_col:
     
