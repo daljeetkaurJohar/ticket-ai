@@ -3,9 +3,7 @@
 import pandas as pd
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 class CategorizationLogic:
@@ -24,21 +22,26 @@ class CategorizationLogic:
 
         self._build_model()
 
-
     # ---------------------------------------------------
     # CLEAN TEXT
     # ---------------------------------------------------
     def _clean_text(self, text):
 
         text = str(text).lower()
+
+        # Remove timestamps
+        text = re.sub(r"\d{2}-\d{2}-\d{4}.*?(am|pm)", "", text)
+
+        # Remove special characters
         text = re.sub(r"[^a-zA-Z0-9 ]", " ", text)
+
+        # Remove extra spaces
         text = re.sub(r"\s+", " ", text)
 
         return text.strip()
 
-
     # ---------------------------------------------------
-    # LOAD TRAINING DATA SAFELY
+    # LOAD TRAINING DATA FROM ALL SHEETS
     # ---------------------------------------------------
     def _load_historical_data(self, excel_file):
 
@@ -55,37 +58,23 @@ class CategorizationLogic:
                 print(f"Skipping {sheet} — empty sheet")
                 continue
 
-            # Force category column = Issue
             if "Issue" not in df.columns:
                 print(f"Skipping {sheet} — no 'Issue' column found")
                 continue
 
-            category_col = "Issue"
-
-            desc_col = "Description" if "Description" in df.columns else None
-            issue_desc_col = "Issue Description" if "Issue Description" in df.columns else None
-
-            df = df.dropna(subset=[category_col])
+            df = df.dropna(subset=["Issue"])
 
             if df.empty:
                 continue
 
-            # SAFE ROW-WISE TEXT BUILDING
-            def build_text(row):
-                parts = []
+            # Combine all non-Issue columns as training text
+            text_columns = [col for col in df.columns if col != "Issue"]
 
-                if desc_col:
-                    parts.append(str(row[desc_col]))
+            df["text"] = df[text_columns].astype(str).agg(" ".join, axis=1)
+            df["text"] = df["text"].apply(self._clean_text)
 
-                if issue_desc_col:
-                    parts.append(str(row[issue_desc_col]))
-
-                return self._clean_text(" ".join(parts))
-
-            df["text"] = df.apply(build_text, axis=1)
-
-            df = df[["text", category_col]]
-            df = df.rename(columns={category_col: "Category"})
+            df = df[["text", "Issue"]]
+            df = df.rename(columns={"Issue": "Category"})
 
             all_data.append(df)
 
@@ -94,45 +83,46 @@ class CategorizationLogic:
 
         return pd.concat(all_data, ignore_index=True)
 
-
     # ---------------------------------------------------
-    # BUILD MACHINE LEARNING MODEL
+    # BUILD SIMILARITY MODEL
     # ---------------------------------------------------
     def _build_model(self):
 
-        self.label_encoder = LabelEncoder()
-
-        y_encoded = self.label_encoder.fit_transform(
-            self.training_df["Category"]
+        self.vectorizer = TfidfVectorizer(
+            stop_words="english",
+            ngram_range=(1, 2),
+            min_df=1
         )
 
-        self.pipeline = Pipeline([
-            ("tfidf", TfidfVectorizer(
-                stop_words="english",
-                ngram_range=(1, 2),
-                min_df=1
-            )),
-            ("clf", LogisticRegression(
-                max_iter=2000,
-                class_weight="balanced"
-            ))
-        ])
+        # Fit vectorizer
+        self.training_vectors = self.vectorizer.fit_transform(
+            self.training_df["text"]
+        )
 
-        self.pipeline.fit(self.training_df["text"], y_encoded)
+        self.training_categories = self.training_df["Category"].values
 
+        print("✅ Similarity model built successfully")
 
     # ---------------------------------------------------
-    # PREDICT CATEGORY
+    # PREDICT CATEGORY USING COSINE SIMILARITY
     # ---------------------------------------------------
     def categorize(self, text):
 
         cleaned = self._clean_text(text)
 
-        pred_encoded = self.pipeline.predict([cleaned])[0]
-        probabilities = self.pipeline.predict_proba([cleaned])[0]
+        if not cleaned:
+            return "Insufficient Data", 0.0
 
-        confidence = max(probabilities)
+        new_vector = self.vectorizer.transform([cleaned])
 
-        predicted_category = self.label_encoder.inverse_transform([pred_encoded])[0]
+        similarities = cosine_similarity(
+            new_vector,
+            self.training_vectors
+        )[0]
 
-        return predicted_category, round(float(confidence), 3)
+        best_index = similarities.argmax()
+        best_score = similarities[best_index]
+
+        predicted_category = self.training_categories[best_index]
+
+        return predicted_category, round(float(best_score), 3)
