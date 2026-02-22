@@ -106,7 +106,7 @@ class CategorizationLogic:
     # ---------------------------------------------------
     # PREDICT CATEGORY USING COSINE SIMILARITY
     # ---------------------------------------------------
-        def categorize(self, text):
+    def categorize(self, text):
     
         cleaned = self._clean_text(text)
     
@@ -125,7 +125,7 @@ class CategorizationLogic:
     
         predicted_category = self.training_categories[best_index]
     
-        # 🔥 ADD THIS BLOCK HERE
+        # Optional threshold
         if best_score < 0.20:
             return "Needs Review", round(float(best_score), 3)
     
