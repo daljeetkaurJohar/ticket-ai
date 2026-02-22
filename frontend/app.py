@@ -130,40 +130,35 @@ if uploaded_file:
 
 
     # ---------------------------------------------------
-    # Date & Month Handling (Final Robust Version)
+    # Robust Date & Month Handling
     # ---------------------------------------------------
     
-    import datetime
+    df.columns = df.columns.str.strip()
+    
+    possible_date_cols = [
+        "Resolved on",
+        "Resolved On",
+        "resolved on",
+        "Raised on",
+        "Raised On",
+        "raised on"
+    ]
     
     date_col = None
     
-    if "Resolved on" in df.columns:
-        date_col = "Resolved on"
-    elif "Raised on" in df.columns:
-        date_col = "Raised on"
+    for col in possible_date_cols:
+        if col in df.columns:
+            date_col = col
+            break
     
     if date_col:
     
-        def parse_date(value):
-            if pd.isna(value):
-                return pd.NaT
+        df["Resolved / Raised Date"] = pd.to_datetime(
+            df[date_col],
+            errors="coerce",
+            dayfirst=True
+        )
     
-            value = str(value).strip()
-    
-            # Try normal parsing first
-            parsed = pd.to_datetime(value, errors="coerce", dayfirst=True)
-    
-            if pd.isna(parsed):
-                # If year missing, append current year
-                current_year = datetime.datetime.now().year
-                try:
-                    parsed = pd.to_datetime(f"{value}-{current_year}", dayfirst=True)
-                except:
-                    return pd.NaT
-    
-            return parsed
-    
-        df["Resolved / Raised Date"] = df[date_col].apply(parse_date)
         df["Month"] = df["Resolved / Raised Date"].dt.strftime("%B")
     
     else:
