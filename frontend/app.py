@@ -130,8 +130,10 @@ if uploaded_file:
 
 
     # ---------------------------------------------------
-    # Date & Month Handling (Robust Fix)
+    # Date & Month Handling (Final Robust Version)
     # ---------------------------------------------------
+    
+    import datetime
     
     date_col = None
     
@@ -141,14 +143,29 @@ if uploaded_file:
         date_col = "Raised on"
     
     if date_col:
-        # Convert with current year if year missing
-        df["Resolved / Raised Date"] = pd.to_datetime(
-            df[date_col].astype(str) + "-2026",
-            errors="coerce",
-            dayfirst=True
-        )
     
+        def parse_date(value):
+            if pd.isna(value):
+                return pd.NaT
+    
+            value = str(value).strip()
+    
+            # Try normal parsing first
+            parsed = pd.to_datetime(value, errors="coerce", dayfirst=True)
+    
+            if pd.isna(parsed):
+                # If year missing, append current year
+                current_year = datetime.datetime.now().year
+                try:
+                    parsed = pd.to_datetime(f"{value}-{current_year}", dayfirst=True)
+                except:
+                    return pd.NaT
+    
+            return parsed
+    
+        df["Resolved / Raised Date"] = df[date_col].apply(parse_date)
         df["Month"] = df["Resolved / Raised Date"].dt.strftime("%B")
+    
     else:
         df["Month"] = "Unknown"
 
