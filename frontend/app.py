@@ -87,7 +87,10 @@ if uploaded_file:
     
         # Step 4: Predict category
         result = predict_ticket(full_text)
-    
+        # If low confidence, mark as Review Required
+        if confidence < 0.25:
+            category = "Needs Review"
+
         predictions.append(result["category"])
         confidences.append(result["confidence"])
     
@@ -125,25 +128,27 @@ if uploaded_file:
 
 
     # ---------------------------------------------------
-    # Date & Month Handling (Stable Version)
+    # Date & Month Handling (Robust Fix)
     # ---------------------------------------------------
+    
     date_col = None
-
+    
     if "Resolved on" in df.columns:
         date_col = "Resolved on"
     elif "Raised on" in df.columns:
         date_col = "Raised on"
-
+    
     if date_col:
+        # Convert with current year if year missing
         df["Resolved / Raised Date"] = pd.to_datetime(
-            df[date_col],
+            df[date_col].astype(str) + "-2026",
             errors="coerce",
             dayfirst=True
         )
+    
         df["Month"] = df["Resolved / Raised Date"].dt.strftime("%B")
     else:
         df["Month"] = "Unknown"
-
 
     # ---------------------------------------------------
     # KPI SECTION
