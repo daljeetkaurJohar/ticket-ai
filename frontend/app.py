@@ -9,11 +9,9 @@ from datetime import datetime
 
 # Add backend path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
-
 from classifier import predict_ticket
 
 st.set_page_config(page_title="Ticket Intelligence Dashboard", layout="wide")
-
 st.title("📊 Ticket Intelligence & Categorization System")
 
 uploaded_file = st.file_uploader("Upload Ticket Excel File", type=["xlsx"])
@@ -26,9 +24,9 @@ if uploaded_file:
     predictions = []
     confidences = []
 
-    # -----------------------------
-    # CLEAN INPUT TEXT (NO WORK NOTES)
-    # -----------------------------
+    # ===============================
+    # CLEAN INPUT TEXT (IMPORTANT)
+    # ===============================
     for _, row in df.iterrows():
 
         text = " ".join([
@@ -44,9 +42,9 @@ if uploaded_file:
     df["Predicted Category"] = predictions
     df["Confidence"] = confidences
 
-    # -----------------------------
+    # ===============================
     # PROFESSIONAL EXECUTIVE SUMMARY
-    # -----------------------------
+    # ===============================
     def refine_summary(row):
 
         summary = str(row.get("Ticket Summary", "")).strip()
@@ -63,9 +61,9 @@ if uploaded_file:
 
     df["Executive Summary"] = df.apply(refine_summary, axis=1)
 
-    # -----------------------------
-    # DATE & MONTH HANDLING
-    # -----------------------------
+    # ===============================
+    # MONTH HANDLING
+    # ===============================
     date_col = None
     for possible in ["Closed On", "Reported On", "Resolved on", "Raised on"]:
         if possible in df.columns:
@@ -78,9 +76,9 @@ if uploaded_file:
     else:
         df["Month"] = "Unknown"
 
-    # -----------------------------
+    # ===============================
     # KPI SECTION
-    # -----------------------------
+    # ===============================
     st.markdown("## 📌 Key Performance Indicators")
 
     col1, col2, col3, col4 = st.columns(4)
@@ -95,9 +93,9 @@ if uploaded_file:
     col3.metric("Avg Confidence", avg_confidence)
     col4.metric("Top Category", top_category)
 
-    # -----------------------------
-    # DASHBOARD
-    # -----------------------------
+    # ===============================
+    # DASHBOARD VISUALS
+    # ===============================
     st.markdown("## 📊 Dashboard Overview")
 
     st.subheader("Issue Category Distribution")
@@ -121,22 +119,30 @@ if uploaded_file:
     st.dataframe(month_percentage.round(2))
     st.bar_chart(month_percentage)
 
-    # -----------------------------
-    # DETAILED VIEW
-    # -----------------------------
+    # ===============================
+    # DETAILED TABLE
+    # ===============================
     st.markdown("## 📄 Detailed Ticket View")
     st.dataframe(df)
 
-    # -----------------------------
-    # PROFESSIONAL REPORT EXPORT
-    # -----------------------------
+    # ===============================
+    # PROFESSIONAL EXCEL EXPORT
+    # ===============================
     output = io.BytesIO()
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
 
         df.to_excel(writer, sheet_name="Detailed_Tickets", index=False)
+        workbook = writer.book
 
-        category_summary = df["Predicted Category"].value_counts().reset_index()
+        # ----------------------------
+        # CATEGORY SUMMARY
+        # ----------------------------
+        category_summary = (
+            df["Predicted Category"]
+            .value_counts()
+            .reset_index()
+        )
         category_summary.columns = ["Category", "Total Tickets"]
 
         category_summary["Percentage"] = (
@@ -146,18 +152,92 @@ if uploaded_file:
 
         category_summary.to_excel(writer, sheet_name="Category_Summary", index=False)
 
-        monthly_summary = (
+        ws_summary = writer.sheets["Category_Summary"]
+
+        from openpyxl.styles import Font, PatternFill
+        header_fill = PatternFill(start_color="2F75B5", end_color="2F75B5", fill_type="solid")
+
+        for cell in ws_summary[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = header_fill
+
+        # ----------------------------
+        # CATEGORY BAR CHART
+        # ----------------------------
+        from openpyxl.chart import BarChart, Reference
+
+        chart = BarChart()
+        chart.title = "Issue Category Distribution"
+        chart.y_axis.title = "Ticket Count"
+        chart.x_axis.title = "Category"
+        chart.style = 10
+
+        data = Reference(ws_summary,
+                         min_col=2,
+                         min_row=1,
+                         max_row=len(category_summary)+1)
+
+        categories = Reference(ws_summary,
+                               min_col=1,
+                               min_row=2,
+                               max_row=len(category_summary)+1)
+
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(categories)
+        chart.width = 20
+        chart.height = 12
+
+        ws_summary.add_chart(chart, "E2")
+
+        # ----------------------------
+        # MONTHLY TREND
+        # ----------------------------
+        monthly_pivot = (
             df.groupby(["Month", "Predicted Category"])
             .size()
-            .reset_index(name="Ticket Count")
+            .unstack(fill_value=0)
         )
 
-        monthly_summary.to_excel(writer, sheet_name="Monthly_Summary", index=False)
+        monthly_pivot.to_excel(writer, sheet_name="Monthly_Trend")
+
+        ws_month = writer.sheets["Monthly_Trend"]
+
+        for cell in ws_month[1]:
+            cell.font = Font(bold=True)
+
+        # ----------------------------
+        # STACKED MONTHLY CHART
+        # ----------------------------
+        stacked_chart = BarChart()
+        stacked_chart.type = "col"
+        stacked_chart.grouping = "stacked"
+        stacked_chart.title = "Monthly Issue Distribution"
+        stacked_chart.y_axis.title = "Tickets"
+        stacked_chart.x_axis.title = "Month"
+
+        data = Reference(ws_month,
+                         min_col=2,
+                         min_row=1,
+                         max_row=ws_month.max_row,
+                         max_col=ws_month.max_column)
+
+        categories = Reference(ws_month,
+                               min_col=1,
+                               min_row=2,
+                               max_row=ws_month.max_row)
+
+        stacked_chart.add_data(data, titles_from_data=True)
+        stacked_chart.set_categories(categories)
+
+        stacked_chart.width = 22
+        stacked_chart.height = 12
+
+        ws_month.add_chart(stacked_chart, "E2")
 
     output.seek(0)
 
     st.download_button(
-        label="📥 Download Professional Report",
+        label="📥 Download Professional Executive Report",
         data=output,
         file_name=f"Ticket_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
