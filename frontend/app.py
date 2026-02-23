@@ -223,7 +223,7 @@ if uploaded_file:
                 df,
                 index=[area_column, "Predicted Category"],
                 columns="Month",
-                values="Ticket Description",
+                values="Predicted Category",
                 aggfunc="count",
                 fill_value=0
             )
