@@ -205,6 +205,59 @@ if uploaded_file:
         for cell in ws_month[1]:
             cell.font = Font(bold=True)
 
+        # ==========================================
+        # AREA-WISE PIVOT TABLE (IF AREA EXISTS)
+        # ==========================================
+
+        area_column = None
+
+        # Possible names for Area column
+        for col in df.columns:
+            if col.strip().lower() in ["area", "area cat", "area category", "team"]:
+                area_column = col
+                break
+
+        if area_column:
+
+            area_pivot = pd.pivot_table(
+                df,
+                index=[area_column, "Predicted Category"],
+                columns="Month",
+                values="Ticket Description",
+                aggfunc="count",
+                fill_value=0
+            )
+
+            # Add Grand Total column
+            area_pivot["Grand Total"] = area_pivot.sum(axis=1)
+
+            area_pivot = area_pivot.reset_index()
+
+            area_pivot.to_excel(writer, sheet_name="Area_Wise_Pivot", index=False)
+
+            ws_area = writer.sheets["Area_Wise_Pivot"]
+
+            from openpyxl.styles import Font, PatternFill
+
+            header_fill = PatternFill(start_color="1F4E78",
+                                      end_color="1F4E78",
+                                      fill_type="solid")
+
+            for cell in ws_area[1]:
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = header_fill
+
+            # Make first column bold (Area)
+            for row in ws_area.iter_rows(min_row=2, max_col=1):
+                for cell in row:
+                    cell.font = Font(bold=True)
+
+        else:
+            # If no Area column → create blank professional sheet
+            empty_df = pd.DataFrame({"Message": ["Area column not available in uploaded file"]})
+            empty_df.to_excel(writer, sheet_name="Area_Wise_Pivot", index=False)
+
+        
         # ----------------------------
         # STACKED MONTHLY CHART
         # ----------------------------
