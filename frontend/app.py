@@ -215,7 +215,7 @@ if uploaded_file:
         
         # Detect Area column dynamically
         for col in df.columns:
-            if col.strip().lower() in ["area", "area cat", "area category", "team"]:
+            if col.strip().lower() in ["area", "Track", "area category", "track"]:
                 area_column = col
                 break
         
